@@ -115,6 +115,22 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2.0.1
       - run: bash scripts/check-layering.sh
 
+  # Public API snapshots (DESIGN §6.5): fails if a crate's public API changed but its
+  # public-api.txt wasn't regenerated with scripts/public-api.sh.
+  public-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2.0.1
+      - run: rustup toolchain install nightly --profile minimal
+      - uses: taiki-e/install-action@893d6ee8d714b6c7dfe2bcd94e5759e9a7958a7e # v2.90.10
+        with:
+          tool: cargo-public-api
+      - run: bash scripts/public-api.sh
+      - run: git diff --exit-code -- '*public-api.txt'
+
   unused-deps:
     runs-on: ubuntu-latest
     steps:

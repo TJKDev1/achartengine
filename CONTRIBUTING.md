@@ -8,7 +8,8 @@ Read it before proposing structural changes. Larger decisions are recorded as AD
 
 ```sh
 rustup show            # installs the pinned toolchain from rust-toolchain.toml
-cargo install --locked lefthook cargo-deny git-cliff cargo-mutants cargo-shear typos-cli taplo-cli zizmor wasmtime-cli
+cargo install --locked lefthook cargo-deny git-cliff cargo-mutants cargo-shear typos-cli taplo-cli zizmor wasmtime-cli cargo-public-api
+rustup toolchain install nightly --profile minimal   # cargo-public-api needs rustdoc JSON
 lefthook install       # git hooks: fmt on commit, message check, clippy+tests on push
 ```
 
@@ -25,6 +26,7 @@ lefthook install       # git hooks: fmt on commit, message check, clippy+tests o
 | Docs | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` |
 | Dependencies | `cargo deny check` |
 | Crate layering | `bash scripts/check-layering.sh` |
+| Public API snapshots | `bash scripts/public-api.sh` (commit the changed `public-api.txt`) |
 | Spelling, TOML, workflows | `typos`, `taplo fmt --check`, `zizmor .github/workflows`, `actionlint` |
 
 ## Code rules

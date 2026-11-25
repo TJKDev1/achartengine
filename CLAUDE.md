@@ -12,6 +12,7 @@ changing architecture, and update it (or add an ADR in `docs/adr/`) when a decis
 - Docs: `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps`
 - Dependencies: `cargo deny check` and `cargo shear`
 - Hygiene: `typos`, `taplo fmt --check`, `zizmor .github/workflows` (actions are pinned to SHAs)
+- Public API: `bash scripts/public-api.sh` rewrites `crates/*/public-api.txt`; commit the diff
 - Mutation tests: `cargo mutants --in-diff <(git diff HEAD)`
 
 Hooks: rustfmt runs after every Edit/Write, an edit that adds a dependency to a `Cargo.toml`

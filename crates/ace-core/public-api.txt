@@ -1,0 +1,2 @@
+pub mod ace_core
+pub const ace_core::VERSION: &str
