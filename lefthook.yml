@@ -1,0 +1,25 @@
+# Git hooks. Install once per clone with `lefthook install`.
+# Skip in an emergency with `LEFTHOOK=0 git commit ...` (CI still runs every check).
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: rustfmt
+      glob: "*.rs"
+      run: cargo fmt --all -- --check
+
+commit-msg:
+  jobs:
+    - name: conventional-commit
+      run: sh scripts/check-commit-msg.sh {1}
+
+pre-push:
+  # Run one after the other: parallel cargo runs just wait on the build lock.
+  piped: true
+  jobs:
+    - name: clippy
+      run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+    - name: test
+      run: cargo test --workspace --all-features --locked
+    - name: wasm32
+      run: cargo check -p ace-core --target wasm32-unknown-unknown --locked

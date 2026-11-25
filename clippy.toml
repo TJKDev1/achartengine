@@ -1,0 +1,37 @@
+# Clippy configuration for the whole workspace.
+msrv = "1.97"
+
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-print-in-tests = true
+allow-dbg-in-tests = true
+avoid-breaking-exported-api = false
+doc-valid-idents = ["AChartEngine", "MessagePack", "WebAssembly", "PyO3", ".."]
+
+# Determinism (DESIGN.md §7). Engine and compute code must give the same output on every machine
+# and every run. Code that really needs one of these (e.g. the frontend's frame clock) must say
+# why with `#[expect(clippy::disallowed_methods, reason = "...")]`.
+disallowed-methods = [
+  { path = "std::time::SystemTime::now", reason = "use the engine's logical clock (determinism)" },
+  { path = "std::time::Instant::now", reason = "use the engine's logical clock (determinism)" },
+  { path = "std::thread::sleep", reason = "the engine never blocks on wall time" },
+  { path = "std::env::var", reason = "configuration comes in through explicit parameters" },
+  { path = "f64::sin", reason = "std transcendentals differ by platform; use `libm`" },
+  { path = "f64::cos", reason = "std transcendentals differ by platform; use `libm`" },
+  { path = "f64::tan", reason = "std transcendentals differ by platform; use `libm`" },
+  { path = "f64::exp", reason = "std transcendentals differ by platform; use `libm`" },
+  { path = "f64::ln", reason = "std transcendentals differ by platform; use `libm`" },
+  { path = "f64::log10", reason = "std transcendentals differ by platform; use `libm`" },
+  { path = "f64::log2", reason = "std transcendentals differ by platform; use `libm`" },
+  { path = "f64::powf", reason = "std transcendentals differ by platform; use `libm`" },
+  { path = "f32::sin", reason = "std transcendentals differ by platform; use `libm`" },
+  { path = "f32::cos", reason = "std transcendentals differ by platform; use `libm`" },
+  { path = "f32::exp", reason = "std transcendentals differ by platform; use `libm`" },
+  { path = "f32::ln", reason = "std transcendentals differ by platform; use `libm`" },
+  { path = "f32::powf", reason = "std transcendentals differ by platform; use `libm`" },
+]
+disallowed-types = [
+  { path = "std::collections::HashMap", reason = "iteration order is random; use BTreeMap or IndexMap" },
+  { path = "std::collections::HashSet", reason = "iteration order is random; use BTreeSet or IndexSet" },
+]

@@ -1,0 +1,96 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/TJKDev1/achartengine"
+homepage = "https://github.com/TJKDev1/achartengine"
+readme = "README.md"
+keywords = ["chart", "charting", "trading", "plugin", "wasm"]
+categories = ["visualization", "finance"]
+authors = ["AChartEngine contributors"]
+
+[workspace.dependencies]
+ace-core = { path = "crates/ace-core", version = "0.0.0" }
+
+# Very strict on purpose. CI runs clippy with `-D warnings`, so every `warn` below fails CI.
+# To silence a lint locally, use `#[expect(lint, reason = "...")]`, never a bare `allow`.
+[workspace.lints.rust]
+unsafe_code = "deny"                    # opt in per crate with a reason; see CONTRIBUTING.md
+missing_docs = "deny"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+single_use_lifetimes = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+meta_variable_misuse = "warn"
+redundant_lifetimes = "warn"
+unit_bindings = "warn"
+non_ascii_idents = "deny"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "warn"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+multiple_crate_versions = "allow"       # graphics stacks make this unavoidable; cargo-deny warns instead
+
+# Hand-picked restriction lints.
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+dbg_macro = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+exit = "deny"
+mem_forget = "deny"
+undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+mod_module_files = "deny"               # use `foo.rs` + `foo/`, never `foo/mod.rs`
+clone_on_ref_ptr = "deny"
+rc_buffer = "deny"
+rc_mutex = "deny"
+str_to_string = "deny"
+string_add = "deny"
+lossy_float_literal = "deny"
+float_cmp_const = "deny"
+missing_assert_message = "deny"
+tests_outside_test_module = "deny"
+rest_pat_in_fully_bound_structs = "deny"
+unneeded_field_pattern = "deny"
+verbose_file_reads = "deny"
+if_then_some_else_none = "deny"
+empty_structs_with_brackets = "deny"
+empty_enum_variants_with_brackets = "deny"
+format_push_string = "deny"
+semicolon_inside_block = "deny"
+try_err = "deny"
+needless_raw_strings = "deny"
+redundant_type_annotations = "deny"
+renamed_function_params = "deny"
+same_name_method = "deny"
+unnecessary_self_imports = "deny"
+self_named_module_files = "allow"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

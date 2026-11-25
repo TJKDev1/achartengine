@@ -1,0 +1,43 @@
+name: Capability / feature
+description: Something the engine, a plugin role or the app should make possible
+labels: ["kind:feature"]
+body:
+  - type: textarea
+    id: capability
+    attributes:
+      label: Capability
+      description: What should become possible, and for whom? (See DESIGN.md §9.)
+    validations:
+      required: true
+  - type: dropdown
+    id: role
+    attributes:
+      label: Extension point
+      options:
+        - core
+        - source
+        - transform
+        - compute
+        - strategy
+        - broker
+        - sink
+        - series
+        - tool
+        - panel
+        - shell
+        - service
+        - frontend / app
+        - bindings
+        - not sure
+    validations:
+      required: true
+  - type: textarea
+    id: smallest
+    attributes:
+      label: Smallest test version
+      description: The minimal version that proves the extension point works end to end.
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: Acceptance criteria.
