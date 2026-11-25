@@ -8,18 +8,10 @@ edition = "2024"
 rust-version = "1.97"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/TJKDev1/achartengine"
-homepage = "https://github.com/TJKDev1/achartengine"
 readme = "README.md"
 keywords = ["chart", "charting", "trading", "plugin", "wasm"]
 categories = ["visualization", "finance"]
 authors = ["AChartEngine contributors"]
-
-[workspace.dependencies]
-ace-core = { path = "crates/ace-core", version = "0.0.0" }
-
-[workspace.metadata.cargo-shear]
-# Not used by any member yet; drop from this list once the first crate depends on it.
-ignored = ["ace-core"]
 
 # Very strict on purpose. CI runs clippy with `-D warnings`, so every `warn` below fails CI.
 # To silence a lint locally, use `#[expect(lint, reason = "...")]`, never a bare `allow`.
