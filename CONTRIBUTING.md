@@ -8,7 +8,7 @@ Read it before proposing structural changes. Larger decisions are recorded as AD
 
 ```sh
 rustup show            # installs the pinned toolchain from rust-toolchain.toml
-cargo install --locked lefthook cargo-deny git-cliff
+cargo install --locked lefthook cargo-deny git-cliff cargo-mutants cargo-shear
 lefthook install       # git hooks: fmt on commit, message check, clippy+tests on push
 ```
 
@@ -49,8 +49,8 @@ enforces the following in core code:
 
 - No wall clock (`SystemTime::now`, `Instant::now`), `thread::sleep` or `env::var`. Time comes
   from the engine's logical clock.
-- No `std` float transcendentals (`sin`, `exp`, `powf`, …), because their results vary by
-  platform. Use `libm`.
+- No `std` float transcendentals (`sin`, `exp`, `powf`, `atan2`, `hypot`, …) or `powi`, because
+  their results vary by platform. Use `libm`.
 - No `std::collections::HashMap`/`HashSet`, because iteration order is random. Use `BTreeMap`,
   `IndexMap`, or a fixed-seed hasher.
 
@@ -66,6 +66,9 @@ reason = "...")]`.
 - Rendering tests compare images against references with a tolerance.
 - Determinism tests run a scenario twice and compare output hashes.
 - Benchmarks (`criterion`) go in `benches/` and are needed for anything on a hot path.
+- CI runs `cargo mutants` on changed code: it mutates the code and fails if no test catches the
+  change. If a mutant survives, add the missing assertion, or exclude truly untestable code in
+  `.cargo/mutants.toml` (`exclude_re`) with a comment. Run it locally with `cargo mutants --in-diff <(git diff)`.
 
 ## Commits and workflow
 

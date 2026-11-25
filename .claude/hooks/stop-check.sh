@@ -6,7 +6,16 @@ active=$(printf '%s' "$input" | jq -r '.stop_hook_active // false')
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 [ -f Cargo.toml ] || exit 0
 
+# "Changed" means uncommitted (incl. untracked) OR committed but not yet pushed: Claude often
+# commits before it stops, which leaves a clean tree. Pushed work already passed pre-push.
 changed=$(git status --porcelain -- '*.rs' '*.toml' 2>/dev/null)
+if [ -z "$changed" ]; then
+  if git rev-parse --verify --quiet '@{upstream}' >/dev/null; then
+    changed=$(git diff --name-only '@{upstream}' -- '*.rs' '*.toml' 2>/dev/null)
+  else
+    changed="no upstream"
+  fi
+fi
 [ -z "$changed" ] && exit 0
 
 out=$(cargo clippy --workspace --all-targets --all-features --quiet --message-format=short -- -D warnings 2>&1)

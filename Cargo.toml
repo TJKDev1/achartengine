@@ -17,6 +17,10 @@ authors = ["AChartEngine contributors"]
 [workspace.dependencies]
 ace-core = { path = "crates/ace-core", version = "0.0.0" }
 
+[workspace.metadata.cargo-shear]
+# Not used by any member yet; drop from this list once the first crate depends on it.
+ignored = ["ace-core"]
+
 # Very strict on purpose. CI runs clippy with `-D warnings`, so every `warn` below fails CI.
 # To silence a lint locally, use `#[expect(lint, reason = "...")]`, never a bare `allow`.
 [workspace.lints.rust]
@@ -90,6 +94,14 @@ renamed_function_params = "deny"
 same_name_method = "deny"
 unnecessary_self_imports = "deny"
 self_named_module_files = "allow"
+# Panics that `unwrap_used` doesn't see: use `get`, iterators or checked ranges instead.
+indexing_slicing = "deny"
+string_slice = "deny"
+# Common shortcuts in generated code that hide bugs.
+wildcard_enum_match_arm = "deny"        # `_ =>` silently swallows variants added later
+map_err_ignore = "deny"                 # `map_err(|_| ..)` throws away the cause
+let_underscore_must_use = "deny"
+unused_result_ok = "deny"
 
 [profile.release]
 lto = "thin"
