@@ -1,0 +1,3 @@
+# Run wasm32-wasip1 test binaries under wasmtime, so `cargo test --target wasm32-wasip1` works.
+[target.wasm32-wasip1]
+runner = "wasmtime"

@@ -8,7 +8,7 @@ Read it before proposing structural changes. Larger decisions are recorded as AD
 
 ```sh
 rustup show            # installs the pinned toolchain from rust-toolchain.toml
-cargo install --locked lefthook cargo-deny git-cliff cargo-mutants cargo-shear typos-cli taplo-cli zizmor
+cargo install --locked lefthook cargo-deny git-cliff cargo-mutants cargo-shear typos-cli taplo-cli zizmor wasmtime-cli
 lefthook install       # git hooks: fmt on commit, message check, clippy+tests on push
 ```
 
@@ -21,6 +21,7 @@ lefthook install       # git hooks: fmt on commit, message check, clippy+tests o
 | Test | `cargo test --workspace --all-features` |
 | `wasm32` check | `cargo check -p ace-core --target wasm32-unknown-unknown` |
 | `no_std` check | `cargo check -p ace-core --target wasm32v1-none` |
+| Tests on WASM | `cargo test -p ace-core --target wasm32-wasip1` (needs `wasmtime` on `PATH`) |
 | Docs | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` |
 | Dependencies | `cargo deny check` |
 | Crate layering | `bash scripts/check-layering.sh` |
