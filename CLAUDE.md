@@ -34,7 +34,9 @@ files changed. Fix what it reports; never silence it.
 
 ## Workflow
 
-- Commit directly to `main` with Conventional Commits (`feat(core): ...`); a hook checks them.
+- Conventional Commits (`feat(core): ...`); a hook checks them. Small changes go straight to
+  `main`. Larger ones (new crate or dependency, ABI/public API/architecture, >~300 lines) go in
+  a PR with green CI and an independent review before merging (ADR 0003, CONTRIBUTING).
 - Planning lives on GitHub (TJKDev1/achartengine): milestones = phases, issues = work items, plus
   the project board. Reference issues in commits (`Closes #N`). File new work as issues instead
   of leaving TODOs.

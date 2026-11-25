@@ -73,8 +73,17 @@ reason = "...")]`.
 
 ## Commits and workflow
 
-- Work happens directly on `main`; there are no required PRs. Every push must pass the
-  pre-push hook and CI.
+- **Small changes** go straight to `main`. Every push must pass the pre-push hook and CI.
+- **Larger changes** go through a pull request, so CI and a review run *before* the code lands
+  ([ADR 0003](docs/adr/0003-pr-flow.md)). A change is larger if it does any of:
+  - adds a crate, or a dependency to an existing crate;
+  - changes the plugin ABI, a public API or the architecture (anything DESIGN.md or an ADR
+    describes);
+  - touches more than about 300 lines, not counting lockfiles and snapshots.
+
+  The PR needs green CI and one independent review (`/code-review`, or a second model that did
+  not write the change). Fix what the review finds, then squash-merge with a Conventional
+  Commit title.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/), and the
   `commit-msg` hook checks them:
   `type(scope)!: summary`, where type is one of `feat fix perf refactor docs test build ci chore
