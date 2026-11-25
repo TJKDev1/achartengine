@@ -2,7 +2,7 @@
 
 - Status: proposed
 - Date: 2026-11-25
-- Issue: to be linked once filed
+- Issue: #7 (spikes: #5 wasmtime, #6 Extism)
 
 ## Context
 
