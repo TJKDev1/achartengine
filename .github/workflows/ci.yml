@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           components: rustfmt
       - run: cargo fmt --all -- --check
@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           components: clippy
       - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
@@ -44,14 +44,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
       - run: cargo test --workspace --all-features --locked
 
   wasm32:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           target: wasm32-unknown-unknown
       - run: cargo check -p ace-core --target wasm32-unknown-unknown --locked
@@ -62,7 +62,7 @@ jobs:
       RUSTDOCFLAGS: -D warnings
     steps:
       - uses: actions/checkout@v7
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
       - run: cargo doc --workspace --no-deps --all-features --locked
 
   deny:
