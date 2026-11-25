@@ -13,7 +13,8 @@ changing architecture, and update it (or add an ADR in `docs/adr/`) when a decis
 - Dependencies: `cargo deny check` and `cargo shear`
 - Mutation tests: `cargo mutants --in-diff <(git diff HEAD)`
 
-Hooks: rustfmt runs after every Edit/Write, and a Stop hook runs clippy when `.rs`/`.toml`
+Hooks: rustfmt runs after every Edit/Write, an edit that adds a dependency to a `Cargo.toml`
+asks the user first, and a Stop hook runs clippy when `.rs`/`.toml`
 files changed. Fix what it reports; never silence it.
 
 ## Rules
