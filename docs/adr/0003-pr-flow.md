@@ -1,6 +1,6 @@
 # 0003: Pull requests for larger changes
 
-- Status: accepted
+- Status: accepted; ADR 0004 adds a readability review
 - Date: 2026-11-25
 - Issue: #27
 

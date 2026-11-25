@@ -14,7 +14,7 @@ of the code will be AI-authored, so rules that only live in prose are easy to br
 
 1. **Keep `std`.** No extra friction, but nothing stops `std::fs`, `std::thread` or
    `std::time` from creeping in; `wasm32-unknown-unknown` still compiles them as stubs.
-2. **`#![no_std]` + `alloc`.** `std` is simply not in scope, so the rule becomes a compile error.
+2. **`#![no_std]` + `alloc`.** `std` is not in scope at all, so the rule becomes a compile error.
    Costs: imports come from `core`/`alloc`, and dependencies need `default-features = false`
    (or must be `no_std`-capable at all).
 

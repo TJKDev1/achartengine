@@ -18,7 +18,7 @@ env:
   RUSTFLAGS: -D warnings
 
 jobs:
-  # Spelling, TOML formatting and workflow linting/security.
+  # Spelling, padding words (docs/STYLE.md), TOML formatting and workflow linting/security.
   hygiene:
     runs-on: ubuntu-latest
     steps:
@@ -29,6 +29,7 @@ jobs:
         with:
           tool: typos,taplo,zizmor
       - run: typos
+      - run: bash scripts/check-prose.sh
       - run: taplo fmt --check
       - run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
       - run: zizmor --offline --format github .github/workflows

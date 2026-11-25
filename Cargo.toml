@@ -94,6 +94,8 @@ wildcard_enum_match_arm = "deny" # `_ =>` silently swallows variants added later
 map_err_ignore = "deny"          # `map_err(|_| ..)` throws away the cause
 let_underscore_must_use = "deny"
 unused_result_ok = "deny"
+# Readability (docs/STYLE.md); the threshold is in clippy.toml.
+excessive_nesting = "deny"
 
 [profile.release]
 lto = "thin"

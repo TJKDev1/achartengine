@@ -7,11 +7,16 @@ pre-commit:
     - name: rustfmt
       glob: "*.rs"
       run: cargo fmt --all -- --check
+    - name: prose
+      glob: "*.{md,rs}"
+      run: bash scripts/check-prose.sh
 
 commit-msg:
   jobs:
     - name: conventional-commit
       run: sh scripts/check-commit-msg.sh {1}
+    - name: prose
+      run: bash scripts/check-prose.sh {1}
 
 pre-push:
   # Run one after the other: parallel cargo runs just wait on the build lock.
