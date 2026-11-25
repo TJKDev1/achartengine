@@ -73,6 +73,14 @@ jobs:
       - uses: actions/checkout@v7
       - uses: EmbarkStudios/cargo-deny-action@v2
 
+  # Lower crates must never depend on higher ones (DESIGN §4, §11).
+  layering:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+      - run: bash scripts/check-layering.sh
+
   unused-deps:
     runs-on: ubuntu-latest
     steps:

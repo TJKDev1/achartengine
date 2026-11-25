@@ -31,6 +31,8 @@ files changed. Fix what it reports; never silence it.
 - Simple over clever. Add complexity only when the simple version fails a requirement, with a
   comment explaining why.
 - Modules use `foo.rs` + `foo/`, not `mod.rs`.
+- Crate layering lives in `scripts/check-layering.sh`. A new crate needs an entry there, and
+  choosing what it may depend on is an architectural decision: ask if DESIGN doesn't settle it.
 
 ## Workflow
 

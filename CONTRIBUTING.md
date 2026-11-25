@@ -23,6 +23,7 @@ lefthook install       # git hooks: fmt on commit, message check, clippy+tests o
 | `no_std` check | `cargo check -p ace-core --target wasm32v1-none` |
 | Docs | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` |
 | Dependencies | `cargo deny check` |
+| Crate layering | `bash scripts/check-layering.sh` |
 
 ## Code rules
 
