@@ -57,6 +57,7 @@ The **engine** and the **tool** built on it are strictly separated, and everythi
 - Column store for series data, the dataflow graph, the scheduler and the logical clock.
 - Scales and axes, viewport and layout, and draw-list generation.
 - No I/O, no threads required, no OS APIs. This is what keeps D1's `wasm32` guarantee.
+- `#![no_std]` + `alloc` ([ADR 0002](adr/0002-no-std-core.md)), so the rule above is a compile error. CI checks it on `wasm32v1-none`, which has no `std`.
 
 ### 4.2 Draw commands (`ace-draw`)
 A small, stable set of retained primitives:

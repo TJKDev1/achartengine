@@ -20,6 +20,7 @@ lefthook install       # git hooks: fmt on commit, message check, clippy+tests o
 | Lint (same as CI) | `cargo clippy --workspace --all-targets --all-features -- -D warnings` |
 | Test | `cargo test --workspace --all-features` |
 | `wasm32` check | `cargo check -p ace-core --target wasm32-unknown-unknown` |
+| `no_std` check | `cargo check -p ace-core --target wasm32v1-none` |
 | Docs | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` |
 | Dependencies | `cargo deny check` |
 

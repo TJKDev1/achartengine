@@ -8,7 +8,7 @@ changing architecture, and update it (or add an ADR in `docs/adr/`) when a decis
 
 - Lint: `cargo clippy --workspace --all-targets --all-features -- -D warnings`
 - Test: `cargo test --workspace --all-features`
-- wasm32: `cargo check -p ace-core --target wasm32-unknown-unknown`
+- wasm32: `cargo check -p ace-core --target wasm32-unknown-unknown` (and `--target wasm32v1-none`, which has no `std`)
 - Docs: `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps`
 - Dependencies: `cargo deny check` and `cargo shear`
 - Mutation tests: `cargo mutants --in-diff <(git diff HEAD)`
@@ -22,7 +22,8 @@ files changed. Fix what it reports; never silence it.
   code. Suppress a lint only with `#[expect(lint, reason = "...")]`, never `#[allow]`.
 - Determinism: no wall clock, sleep, env vars, std float transcendentals (use `libm`) or std
   `HashMap`/`HashSet` in engine code. clippy.toml enforces this.
-- `ace-core` has no I/O, no threads and no OS APIs, and must build for `wasm32-unknown-unknown`.
+- `ace-core` is `#![no_std]` + `alloc` (ADR 0002): no I/O, no threads, no OS APIs. Import from
+  `core`/`alloc`, and add dependencies with `default-features = false`.
 - No panicking indexing either (`v[i]`, `&s[a..b]`): use `get`, iterators or checked ranges.
   No `_ =>` arms on our own enums; list the variants.
 - Tests must fail when the behaviour breaks. CI's `cargo mutants` checks this on every change.

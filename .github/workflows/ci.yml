@@ -53,8 +53,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
-          target: wasm32-unknown-unknown
+          target: wasm32-unknown-unknown,wasm32v1-none
       - run: cargo check -p ace-core --target wasm32-unknown-unknown --locked
+      # wasm32v1-none ships no `std`, so this fails if ace-core or a dependency pulls it in (ADR 0002).
+      - run: cargo check -p ace-core --target wasm32v1-none --locked
 
   docs:
     runs-on: ubuntu-latest

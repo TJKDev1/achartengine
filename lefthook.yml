@@ -23,3 +23,5 @@ pre-push:
       run: cargo test --workspace --all-features --locked
     - name: wasm32
       run: cargo check -p ace-core --target wasm32-unknown-unknown --locked
+    - name: no-std
+      run: cargo check -p ace-core --target wasm32v1-none --locked
