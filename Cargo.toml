@@ -51,7 +51,7 @@ bare_urls = "warn"
 all = { level = "deny", priority = -1 }
 pedantic = { level = "deny", priority = -1 }
 cargo = { level = "deny", priority = -1 }
-multiple_crate_versions = "allow"       # graphics stacks make this unavoidable; cargo-deny warns instead
+multiple_crate_versions = "allow"            # graphics stacks make this unavoidable; cargo-deny warns instead
 
 # Hand-picked restriction lints.
 unwrap_used = "deny"
@@ -69,7 +69,7 @@ undocumented_unsafe_blocks = "deny"
 multiple_unsafe_ops_per_block = "deny"
 allow_attributes = "deny"
 allow_attributes_without_reason = "deny"
-mod_module_files = "deny"               # use `foo.rs` + `foo/`, never `foo/mod.rs`
+mod_module_files = "deny"                  # use `foo.rs` + `foo/`, never `foo/mod.rs`
 clone_on_ref_ptr = "deny"
 rc_buffer = "deny"
 rc_mutex = "deny"
@@ -98,8 +98,8 @@ self_named_module_files = "allow"
 indexing_slicing = "deny"
 string_slice = "deny"
 # Common shortcuts in generated code that hide bugs.
-wildcard_enum_match_arm = "deny"        # `_ =>` silently swallows variants added later
-map_err_ignore = "deny"                 # `map_err(|_| ..)` throws away the cause
+wildcard_enum_match_arm = "deny" # `_ =>` silently swallows variants added later
+map_err_ignore = "deny"          # `map_err(|_| ..)` throws away the cause
 let_underscore_must_use = "deny"
 unused_result_ok = "deny"
 

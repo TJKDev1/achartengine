@@ -11,6 +11,7 @@ changing architecture, and update it (or add an ADR in `docs/adr/`) when a decis
 - wasm32: `cargo check -p ace-core --target wasm32-unknown-unknown` (and `--target wasm32v1-none`, which has no `std`)
 - Docs: `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps`
 - Dependencies: `cargo deny check` and `cargo shear`
+- Hygiene: `typos`, `taplo fmt --check`, `zizmor .github/workflows` (actions are pinned to SHAs)
 - Mutation tests: `cargo mutants --in-diff <(git diff HEAD)`
 
 Hooks: rustfmt runs after every Edit/Write, an edit that adds a dependency to a `Cargo.toml`
