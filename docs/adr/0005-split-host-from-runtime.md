@@ -52,8 +52,8 @@ so it's written once. Columns stay resident in plugin memory between calls, addr
 and length. The trait must not expose wasmtime types, require `Send`, or hand out memory slices:
 browser JS handles aren't `Send`, and a browser invalidates views into memory when it grows.
 
-Extism hides linear memory behind its own `call(name, input)`, so it might not fit this trait.
-The Extism spike (#6) checks that.
+Extism hides linear memory behind its own `call(name, input)`, so it doesn't fit this trait
+(ADR 0001).
 
 ## Consequences
 
@@ -61,8 +61,8 @@ The Extism spike (#6) checks that.
   WASM import can only wait for them through JavaScript Promise Integration (JSPI), Asyncify
   (which rewrites the module), or a worker blocking on `Atomics.wait` (which needs cross-origin
   isolation). Before a browser backend is possible, I/O host calls must become requests whose
-  results arrive on a later call. The ABI decision (#7) should settle this, since changing it
-  later breaks plugins. [ADR 0001](0001-plugin-abi.md) does: I/O host calls return a request id.
+  results arrive on a later call. Changing this after plugins ship would break them, so
+  [ADR 0001](0001-plugin-abi.md) adopts it from the start.
 - **Determinism (D8).** `ace-host` rejects modules that use threads or relaxed SIMD, so no backend
   has to support them. It canonicalizes NaN in decoded messages, in columns read back and in
   anything it hashes or journals, so backends can't disagree on NaN bits. Plugin code that

@@ -79,7 +79,7 @@ Charts, plugin canvases and the widget library all emit these. Every frontend im
 - Implements the plugin ABI ([ADR 0001](adr/0001-plugin-abi.md)), validates modules and enforces permissions.
 - Brokers I/O (network, storage, secrets) for plugins. The app or frontend implements the actual I/O.
 - Runs plugins through a runtime trait, so `ace-host` has no wasmtime dependency and builds for `wasm32` ([ADR 0005](adr/0005-split-host-from-runtime.md)).
-- A runtime backend implements the trait and applies fuel and memory limits, plus an epoch deadline in live use. `ace-host-wasmtime` is the native one; a browser backend would use the browser's `WebAssembly` API.
+- A runtime backend implements the trait and applies fuel and memory limits, plus a wall-clock deadline in live use (epochs on wasmtime). `ace-host-wasmtime` is the native one; a browser backend would use the browser's `WebAssembly` API.
 
 ### 4.5 Frontend (`ace-frontend-wgpu`)
 - Renders draw lists and the widget semantic tree, forwards input, and manages windows.
@@ -261,7 +261,7 @@ app/                   reference app
 
 ## 12. Open questions
 
-1. ~~Plugin ABI~~ **Resolved** ([ADR 0001](adr/0001-plugin-abi.md)): a home-made ABI directly on `wasmtime`. Plugins export `alloc`, `free` and `call` and import `host_call`. Columns are raw little-endian arrays that stay in plugin memory, and control messages are MessagePack. Host calls that need I/O return a request id, and their result arrives on a later call.
+1. ~~Plugin ABI~~ **Resolved** ([ADR 0001](adr/0001-plugin-abi.md)): a home-made ABI directly on `wasmtime`, with I/O host calls as request and later result.
 2. ~~Graph ownership~~ **Resolved:** the engine only needs to support graphs. How they get built is a UI concern. By default, "Add RSI" wires the nodes automatically. A visual node editor for power users can come later as a plugin.
 3. **Text input and IME** inside canvas-only plugins: the host probably needs a text-field primitive so IME works.
 4. **Workspace/storage format:** a single file (SQLite?) or a folder of JSON plus Parquet.

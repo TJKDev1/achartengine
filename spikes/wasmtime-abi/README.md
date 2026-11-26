@@ -54,7 +54,7 @@ afterwards (DESIGN §6.3). Per-call overhead (180 ns) doesn't matter at this siz
 Fuel metering more than doubles the time of a tight numeric loop: SMA(20) over 1M rows goes from
 0.8 ms to 1.8 ms. Epoch interruption was expected to cost less, but costs the same. Fuel is also
 deterministic, which replay needs (D8 in DESIGN). Fuel doesn't bound time spent waiting in
-`host_call`, so #7 decides whether live use also needs a wall-clock limit.
+`host_call`; ADR 0001 adds a wall-clock deadline for live use.
 
 On the web the host can't be wasmtime. A browser frontend would run plugins on the browser's own
 WebAssembly engine, so `ace-host` needs its engine behind a small interface (instantiate, call an
