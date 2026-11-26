@@ -1,0 +1,55 @@
+pub mod ace_host_wasmtime
+pub struct ace_host_wasmtime::Ticker
+impl ace_host_wasmtime::Ticker
+pub fn ace_host_wasmtime::Ticker::tick(&self)
+impl core::clone::Clone for ace_host_wasmtime::Ticker
+pub fn ace_host_wasmtime::Ticker::clone(&self) -> Self
+impl core::fmt::Debug for ace_host_wasmtime::Ticker
+pub fn ace_host_wasmtime::Ticker::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for ace_host_wasmtime::Ticker
+impl core::marker::Freeze for ace_host_wasmtime::Ticker
+impl core::marker::Move for ace_host_wasmtime::Ticker
+impl core::marker::Send for ace_host_wasmtime::Ticker
+impl core::marker::Sync for ace_host_wasmtime::Ticker
+impl core::marker::Unpin for ace_host_wasmtime::Ticker
+impl core::marker::UnsafeUnpin for ace_host_wasmtime::Ticker
+impl !core::panic::unwind_safe::RefUnwindSafe for ace_host_wasmtime::Ticker
+impl !core::panic::unwind_safe::UnwindSafe for ace_host_wasmtime::Ticker
+pub struct ace_host_wasmtime::WasmtimePlugin<H: 'static>
+impl<H: 'static> core::fmt::Debug for ace_host_wasmtime::WasmtimePlugin<H>
+pub fn ace_host_wasmtime::WasmtimePlugin<H>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<H: ace_host::runtime::HostCall + 'static> ace_host::runtime::Plugin for ace_host_wasmtime::WasmtimePlugin<H>
+pub fn ace_host_wasmtime::WasmtimePlugin<H>::call(&mut self, &str, &[u64]) -> core::result::Result<alloc::vec::Vec<u64>, ace_host::runtime::PluginError>
+pub fn ace_host_wasmtime::WasmtimePlugin<H>::fuel(&self) -> core::result::Result<u64, ace_host::runtime::PluginError>
+pub fn ace_host_wasmtime::WasmtimePlugin<H>::read(&mut self, u32, &mut [u8]) -> core::result::Result<(), ace_host::runtime::PluginError>
+pub fn ace_host_wasmtime::WasmtimePlugin<H>::set_fuel(&mut self, u64) -> core::result::Result<(), ace_host::runtime::PluginError>
+pub fn ace_host_wasmtime::WasmtimePlugin<H>::write(&mut self, u32, &[u8]) -> core::result::Result<(), ace_host::runtime::PluginError>
+impl<H> core::marker::Forget for ace_host_wasmtime::WasmtimePlugin<H>
+impl<H> core::marker::Freeze for ace_host_wasmtime::WasmtimePlugin<H> where wasmtime::runtime::store::Store<State<H>>: core::marker::Freeze
+impl<H> core::marker::Move for ace_host_wasmtime::WasmtimePlugin<H>
+impl<H> core::marker::Send for ace_host_wasmtime::WasmtimePlugin<H> where wasmtime::runtime::store::Store<State<H>>: core::marker::Send
+impl<H> core::marker::Sync for ace_host_wasmtime::WasmtimePlugin<H> where wasmtime::runtime::store::Store<State<H>>: core::marker::Sync
+impl<H> core::marker::Unpin for ace_host_wasmtime::WasmtimePlugin<H> where wasmtime::runtime::store::Store<State<H>>: core::marker::Unpin
+impl<H> core::marker::UnsafeUnpin for ace_host_wasmtime::WasmtimePlugin<H> where wasmtime::runtime::store::Store<State<H>>: core::marker::UnsafeUnpin
+impl<H> !core::panic::unwind_safe::RefUnwindSafe for ace_host_wasmtime::WasmtimePlugin<H>
+impl<H> !core::panic::unwind_safe::UnwindSafe for ace_host_wasmtime::WasmtimePlugin<H>
+pub struct ace_host_wasmtime::WasmtimeRuntime
+impl ace_host_wasmtime::WasmtimeRuntime
+pub fn ace_host_wasmtime::WasmtimeRuntime::new() -> core::result::Result<Self, ace_host::runtime::PluginError>
+pub fn ace_host_wasmtime::WasmtimeRuntime::ticker(&self) -> ace_host_wasmtime::Ticker
+impl ace_host::runtime::Runtime for ace_host_wasmtime::WasmtimeRuntime
+pub type ace_host_wasmtime::WasmtimeRuntime::Module = wasmtime::runtime::module::Module
+pub type ace_host_wasmtime::WasmtimeRuntime::Plugin<H: ace_host::runtime::HostCall + 'static> = ace_host_wasmtime::WasmtimePlugin<H>
+pub fn ace_host_wasmtime::WasmtimeRuntime::instantiate<H: ace_host::runtime::HostCall + 'static>(&self, &wasmtime::runtime::module::Module, ace_host::runtime::Limits, H) -> core::result::Result<ace_host_wasmtime::WasmtimePlugin<H>, ace_host::runtime::PluginError>
+pub fn ace_host_wasmtime::WasmtimeRuntime::load(&self, &[u8]) -> core::result::Result<wasmtime::runtime::module::Module, ace_host::runtime::PluginError>
+impl core::fmt::Debug for ace_host_wasmtime::WasmtimeRuntime
+pub fn ace_host_wasmtime::WasmtimeRuntime::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for ace_host_wasmtime::WasmtimeRuntime
+impl core::marker::Freeze for ace_host_wasmtime::WasmtimeRuntime
+impl core::marker::Move for ace_host_wasmtime::WasmtimeRuntime
+impl core::marker::Send for ace_host_wasmtime::WasmtimeRuntime
+impl core::marker::Sync for ace_host_wasmtime::WasmtimeRuntime
+impl core::marker::Unpin for ace_host_wasmtime::WasmtimeRuntime
+impl core::marker::UnsafeUnpin for ace_host_wasmtime::WasmtimeRuntime
+impl !core::panic::unwind_safe::RefUnwindSafe for ace_host_wasmtime::WasmtimeRuntime
+impl !core::panic::unwind_safe::UnwindSafe for ace_host_wasmtime::WasmtimeRuntime

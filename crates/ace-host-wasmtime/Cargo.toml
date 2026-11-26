@@ -1,0 +1,28 @@
+[package]
+name = "ace-host-wasmtime"
+description = "Native WASM runtime for the AChartEngine plugin host, built on wasmtime."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+authors.workspace = true
+
+[dependencies]
+ace-host = { path = "../ace-host", version = "0.0.0" }
+# Only what running compiled plugins needs; the defaults add WASI, the component model and more.
+wasmtime = { version = "51", default-features = false, features = [
+  "cranelift",
+  "runtime",
+  "std",
+] }
+
+[dev-dependencies]
+# Lets the tests write their plugins as WebAssembly text.
+wasmtime = { version = "51", default-features = false, features = ["wat"] }
+
+[lints]
+workspace = true
