@@ -58,6 +58,9 @@ impl core::panic::unwind_safe::UnwindSafe for ace_core::ColumnValues
 pub enum ace_core::DatasetError
 pub ace_core::DatasetError::DuplicateName
 pub ace_core::DatasetError::DuplicateName::column: alloc::string::String
+pub ace_core::DatasetError::KeyContainsNan
+pub ace_core::DatasetError::KeyContainsNan::column: alloc::string::String
+pub ace_core::DatasetError::KeyContainsNan::row: usize
 pub ace_core::DatasetError::KeyNotFound
 pub ace_core::DatasetError::KeyNotFound::column: alloc::string::String
 pub ace_core::DatasetError::KeyNotSorted
