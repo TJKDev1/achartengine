@@ -1,6 +1,6 @@
 [package]
 name = "ace-host"
-description = "Plugin host of AChartEngine: the plugin ABI and permissions, independent of the WASM runtime."
+description = "Plugin host of AChartEngine: the plugin ABI, independent of the WASM runtime."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -31,6 +31,7 @@ impl Runtime for TestRuntime {
             next_free: 8,
             freed: Vec::new(),
             memory_full: false,
+            largest_read: 0,
             fuel: limits.fuel,
             host: Some(host),
         })
@@ -46,6 +47,8 @@ pub(crate) struct TestPlugin<H> {
     pub(crate) freed: Vec<Region>,
     /// Makes `alloc` return 0, as a plugin out of memory does.
     pub(crate) memory_full: bool,
+    /// Length of the largest buffer a `read` was asked to fill.
+    pub(crate) largest_read: usize,
     fuel: u64,
     /// Taken out while `host_call` runs, so the host can be given `&mut self` as the plugin.
     host: Option<H>,
@@ -123,6 +126,7 @@ impl<H: HostCall> Plugin for TestPlugin<H> {
     }
 
     fn read(&mut self, ptr: u32, buffer: &mut [u8]) -> Result<(), PluginError> {
+        self.largest_read = self.largest_read.max(buffer.len());
         let range = self.range(ptr, buffer.len())?;
         buffer.copy_from_slice(&self.memory[range]);
         Ok(())

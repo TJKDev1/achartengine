@@ -2,10 +2,10 @@
 # Checks crate layering (DESIGN §4, §11): a crate may only depend on the workspace crates listed
 # for it below, so lower layers can never reach up into higher ones. Engine crates also may not
 # pull in windowing, GPU, WASM-runtime or Python crates, directly or through another crate.
+# Only normal and build dependencies count; dev-dependencies may reach up for tests.
 #
 # Every workspace crate must have an entry. When you add a crate, add its line here; the check
 # fails until you do, so the layering is decided on purpose rather than by accident.
-# Only normal and build dependencies count; dev-dependencies may reach up for tests.
 #
 # Usage: scripts/check-layering.sh   (needs cargo and jq)
 set -euo pipefail
@@ -19,9 +19,11 @@ declare -A allowed=(
 
 # crate -> space-separated patterns that no crate in its resolved dependency tree may match.
 # wasmi builds on wasm32v1-none, so only this check would catch it (ADR 0005).
+# ace-host-wasmtime has no entry: it is the crate that brings in wasmtime.
+engine_forbidden="wgpu* winit* wasmtime* wasmi* extism* pyo3* tokio*"
 declare -A forbidden=(
-  [ace-core]="wgpu* winit* wasmtime* wasmi* extism* pyo3* tokio*"
-  [ace-host]="ace-host-wasmtime wgpu* winit* wasmtime* wasmi* extism* pyo3* tokio*"
+  [ace-core]="$engine_forbidden"
+  [ace-host]="ace-host-wasmtime $engine_forbidden"
 )
 
 meta=$(cargo metadata --format-version 1 --no-deps --locked)
@@ -33,11 +35,13 @@ status=0
 
 # Fails if any crate in the normal and build dependency tree of $1 matches a forbidden pattern.
 check_tree() {
-  local crate=$1 dep pattern patterns
+  local crate=$1 dep pattern patterns tree
   [[ -v "forbidden[$crate]" ]] || return 0
   read -ra patterns <<<"${forbidden[$crate]}"
-  for dep in $(cargo tree -p "$crate" -e normal,build --prefix none --format '{p}' --locked |
-    cut -d' ' -f1 | tr -d '' | sort -u); do
+  # Assigned on its own line so a failing `cargo tree` stops the script instead of looping
+  # over nothing.
+  tree=$(cargo tree -p "$crate" -e normal,build --prefix none --format '{p}' --locked)
+  for dep in $(cut -d' ' -f1 <<<"$tree" | tr -d '\r' | sort -u); do
     for pattern in "${patterns[@]}"; do
       # shellcheck disable=SC2053 # the pattern is meant to glob
       if [[ $dep == $pattern ]]; then

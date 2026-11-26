@@ -5,10 +5,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use ace_host::{HostCall, Limits, Plugin, PluginError, Region, Runtime, copy_in, copy_out};
 
-use crate::{WasmtimePlugin, WasmtimeRuntime};
+use crate::{TABLE_ELEMENTS, WasmtimePlugin, WasmtimeRuntime, no_memory};
 
 /// A plugin with a bump allocator, an export that forwards to `host_call`, one that loops
-/// forever and one that grows memory.
+/// forever, and ones that grow its memory and its table.
 const PLUGIN: &str = r#"
 (module
   (import "ace" "host_call" (func $host_call (param i32 i32) (result i64)))
@@ -24,7 +24,10 @@ const PLUGIN: &str = r#"
     (call $host_call (local.get 0) (local.get 1)))
   (func (export "spin") (loop $forever (br $forever)))
   (func (export "grow") (param $pages i32) (result i32)
-    (memory.grow (local.get $pages))))
+    (memory.grow (local.get $pages)))
+  (table 0 funcref)
+  (func (export "grow_table") (param $elements i32) (result i32)
+    (table.grow (ref.null func) (local.get $elements))))
 "#;
 
 const PAGE: usize = 64 * 1024;
@@ -133,6 +136,7 @@ fn the_deadline_stops_an_infinite_loop() {
         },
     );
     let ticker = runtime.ticker();
+    // Tick in a loop: each call restarts its deadline, so ticks sent before the call don't count.
     let done = Arc::new(AtomicBool::new(false));
     let ticking = std::thread::spawn({
         let done = Arc::clone(&done);
@@ -154,18 +158,74 @@ fn the_deadline_stops_an_infinite_loop() {
 }
 
 #[test]
+fn the_deadline_counts_from_the_start_of_each_call() {
+    let runtime = WasmtimeRuntime::new().unwrap();
+    let mut plugin = instantiate(
+        &runtime,
+        Limits {
+            deadline_ticks: Some(5),
+            ..limits()
+        },
+    );
+    for _ in 0..100 {
+        runtime.ticker().tick();
+    }
+    assert!(
+        plugin.call("alloc", &[8]).is_ok(),
+        "ticks between calls don't use up the next call's deadline"
+    );
+}
+
+#[test]
+fn without_a_deadline_ticks_never_stop_a_call() {
+    let runtime = WasmtimeRuntime::new().unwrap();
+    let mut plugin = instantiate(&runtime, limits());
+    for _ in 0..100 {
+        runtime.ticker().tick();
+    }
+    assert!(
+        plugin.call("alloc", &[8]).is_ok(),
+        "`None` means no deadline"
+    );
+}
+
+#[test]
 fn growing_past_the_memory_cap_fails_inside_the_plugin() {
     let runtime = WasmtimeRuntime::new().unwrap();
     let mut plugin = instantiate(&runtime, limits());
     assert_eq!(
         plugin.call("grow", &[1]),
         Ok(vec![1]),
-        "one more page fits under the cap"
+        "the second page fits under the two-page cap"
     );
     assert_eq!(
         plugin.call("grow", &[1]),
         Ok(vec![u64::from(u32::MAX)]),
         "`memory.grow` returns -1 past the cap, and the call goes on"
+    );
+}
+
+#[test]
+fn growing_a_table_past_its_cap_fails_inside_the_plugin() {
+    let runtime = WasmtimeRuntime::new().unwrap();
+    // `table.grow` costs fuel for each element it adds.
+    let mut plugin = instantiate(
+        &runtime,
+        Limits {
+            fuel: u64::MAX,
+            ..limits()
+        },
+    );
+    let cap = u64::try_from(TABLE_ELEMENTS).unwrap();
+    assert_eq!(
+        plugin.call("grow_table", &[cap]),
+        Ok(vec![0]),
+        "a table may grow to the cap"
+    );
+    assert_eq!(
+        plugin.call("grow_table", &[1]),
+        Ok(vec![u64::from(u32::MAX)]),
+        "`table.grow` returns -1 past the cap"
     );
 }
 
@@ -214,12 +274,19 @@ fn modules_outside_the_abi_are_rejected() {
         ),
         "an import the host doesn't provide"
     );
-    let no_memory = runtime.load(b"(module)").unwrap();
+    let memoryless = runtime.load(b"(module)").unwrap();
     assert_eq!(
-        runtime.instantiate(&no_memory, limits(), host()).err(),
-        Some(PluginError::InvalidModule(
-            "no memory exported as `memory`".into()
-        )),
+        runtime.instantiate(&memoryless, limits(), host()).err(),
+        Some(no_memory()),
         "a module without memory"
+    );
+    let relaxed_simd = b"(module (func (param v128 v128 v128) (result v128)
+        (f32x4.relaxed_madd (local.get 0) (local.get 1) (local.get 2))))";
+    assert!(
+        matches!(
+            runtime.load(relaxed_simd),
+            Err(PluginError::InvalidModule(_))
+        ),
+        "relaxed SIMD, whose results differ between machines"
     );
 }

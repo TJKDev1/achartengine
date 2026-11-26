@@ -36,9 +36,9 @@ pub trait Runtime {
 
 /// A running plugin, seen from the host.
 ///
-/// Exports take and return integers; anything larger goes through memory (ADR 0001). The same
-/// trait is handed to [`HostCall::host_call`], so the host can call the plugin's `alloc` to
-/// place its answer.
+/// Exports take and return integers; anything larger goes through memory (ADR 0001).
+/// [`HostCall::host_call`] receives the plugin as `&mut dyn Plugin`, so the host can call the
+/// plugin's `alloc` to place its answer.
 pub trait Plugin {
     /// Calls the export `name` with integer arguments and returns its results.
     ///
@@ -66,14 +66,14 @@ pub trait Plugin {
     ///
     /// # Errors
     ///
-    /// If the backend can't meter fuel.
+    /// [`PluginError::Trap`] if the backend can't meter fuel.
     fn set_fuel(&mut self, fuel: u64) -> Result<(), PluginError>;
 
     /// Fuel left, so the host can journal what a call used (DESIGN §7).
     ///
     /// # Errors
     ///
-    /// If the backend can't meter fuel.
+    /// [`PluginError::Trap`] if the backend can't meter fuel.
     fn fuel(&self) -> Result<u64, PluginError>;
 }
 
@@ -96,8 +96,9 @@ pub trait HostCall {
 /// Limits a backend applies to every call into a plugin.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
-    /// Fuel for the plugin's start function and first call. Every limit is deterministic
-    /// except `deadline`, so replays use this alone (ADR 0001).
+    /// Starting fuel, spent by the start function and every call until [`Plugin::set_fuel`]
+    /// refills it. Fuel and `memory_bytes` are deterministic and `deadline_ticks` is not, so
+    /// replays rely on the first two (ADR 0001).
     pub fuel: u64,
     /// Most bytes of linear memory the plugin may grow to. Growing past it fails inside the
     /// plugin, which can handle the refusal.

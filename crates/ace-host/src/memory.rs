@@ -42,23 +42,27 @@ pub fn copy_in(plugin: &mut dyn Plugin, bytes: &[u8]) -> Result<Region, PluginEr
     let len = u32::try_from(bytes.len()).map_err(|error| {
         PluginError::Abi(format!("{} bytes don't fit in a u32: {error}", bytes.len()))
     })?;
-    let ptr = match plugin.call("alloc", &[u64::from(len)])?.as_slice() {
-        [ptr] => u32::try_from(*ptr)
-            .map_err(|error| PluginError::Abi(format!("`alloc` returned {ptr}: {error}")))?,
-        results => {
-            return Err(PluginError::Abi(format!(
-                "`alloc` returned {} values instead of one",
-                results.len()
-            )));
-        }
-    };
-    if ptr == 0 {
-        return Err(PluginError::Abi(format!(
-            "`alloc` has no room for {len} bytes"
-        )));
-    }
+    let ptr = alloc(plugin, len)?;
     plugin.write(ptr, bytes)?;
     Ok(Region { ptr, len })
+}
+
+/// Calls the plugin's `alloc`, which returns 0 when it is out of memory.
+fn alloc(plugin: &mut dyn Plugin, len: u32) -> Result<u32, PluginError> {
+    let results = plugin.call("alloc", &[u64::from(len)])?;
+    let [ptr] = results[..] else {
+        return Err(PluginError::Abi(format!(
+            "`alloc` returned {} values instead of one",
+            results.len()
+        )));
+    };
+    match u32::try_from(ptr) {
+        Ok(0) => Err(PluginError::Abi(format!(
+            "`alloc` has no room for {len} bytes"
+        ))),
+        Ok(ptr) => Ok(ptr),
+        Err(error) => Err(PluginError::Abi(format!("`alloc` returned {ptr}: {error}"))),
+    }
 }
 
 /// Copies a buffer the plugin returned out of its memory, then frees it with the plugin's
@@ -66,8 +70,21 @@ pub fn copy_in(plugin: &mut dyn Plugin, bytes: &[u8]) -> Result<Region, PluginEr
 ///
 /// # Errors
 ///
-/// Any error from reading the buffer or calling `free`.
+/// [`PluginError::OutOfBounds`] if the region isn't inside plugin memory, or any error from
+/// calling `free`.
 pub fn copy_out(plugin: &mut dyn Plugin, region: Region) -> Result<Vec<u8>, PluginError> {
+    // The plugin chose `len` and could claim 4 GiB. Read the last byte first, so the buffer
+    // below is never larger than the plugin's memory.
+    if let Some(last) = region.len.checked_sub(1) {
+        let out_of_bounds = PluginError::OutOfBounds {
+            ptr: region.ptr,
+            len: region.len as usize,
+        };
+        let end = region.ptr.checked_add(last).ok_or(out_of_bounds.clone())?;
+        plugin
+            .read(end, &mut [0])
+            .map_err(|_out_of_bounds| out_of_bounds)?;
+    }
     let mut bytes = vec![0; region.len as usize];
     plugin.read(region.ptr, &mut bytes)?;
     plugin.call("free", &[u64::from(region.ptr), u64::from(region.len)])?;
@@ -140,6 +157,27 @@ mod tests {
         assert!(
             plugin.freed.is_empty(),
             "nothing is freed after a failed read"
+        );
+    }
+
+    #[test]
+    fn a_region_larger_than_memory_is_refused_before_allocating() {
+        let mut plugin = TestPlugin::new();
+        let region = Region {
+            ptr: 0,
+            len: u32::MAX,
+        };
+        assert_eq!(
+            copy_out(&mut plugin, region),
+            Err(PluginError::OutOfBounds {
+                ptr: 0,
+                len: u32::MAX as usize
+            }),
+            "the region is checked against memory size"
+        );
+        assert_eq!(
+            plugin.largest_read, 1,
+            "only the last byte was read, so no 4 GiB buffer was made"
         );
     }
 }

@@ -10,9 +10,10 @@ use wasmtime::{
     Module, Store, StoreLimits, StoreLimitsBuilder, Trap, Val, ValType,
 };
 
-/// Deadline set when [`Limits::deadline_ticks`] is `None`. wasmtime adds it to the current
-/// epoch, so `u64::MAX` would overflow and fire at once.
-const NO_DEADLINE: u64 = u64::MAX / 2;
+/// Most table elements a plugin may hold. [`Limits::memory_bytes`] covers linear memory only,
+/// and a table of funcrefs costs the host about 8 bytes per element, so this caps tables at
+/// 8 MiB. Compilers emit one table for indirect calls, far smaller than this.
+const TABLE_ELEMENTS: usize = 1 << 20;
 
 /// Runs plugins on wasmtime, compiling them with Cranelift.
 pub struct WasmtimeRuntime {
@@ -20,15 +21,18 @@ pub struct WasmtimeRuntime {
 }
 
 impl WasmtimeRuntime {
-    /// Creates a runtime with fuel metering and epoch interruption turned on.
+    /// Creates a runtime with fuel metering and epoch interruption turned on, and relaxed SIMD
+    /// turned off because its results differ between machines (ADR 0005).
     ///
     /// # Errors
     ///
     /// [`PluginError::InvalidModule`] if wasmtime can't set up a compiler for this machine.
+    /// No module is involved yet, but that variant is the closest.
     pub fn new() -> Result<Self, PluginError> {
         let mut config = Config::new();
         config.consume_fuel(true);
         config.epoch_interruption(true);
+        config.wasm_relaxed_simd(false);
         let engine = Engine::new(&config).map_err(|error| invalid_module(&error))?;
         Ok(Self { engine })
     }
@@ -64,14 +68,20 @@ impl Runtime for WasmtimeRuntime {
     ) -> Result<WasmtimePlugin<H>, PluginError> {
         let state = State {
             host: Some(host),
+            // One instance with one memory and one table, so the caps below are the whole budget.
             limits: StoreLimitsBuilder::new()
                 .memory_size(limits.memory_bytes)
+                .table_elements(TABLE_ELEMENTS)
+                .instances(1)
+                .memories(1)
+                .tables(1)
                 .build(),
         };
         let mut store = Store::new(&self.engine, state);
         store.limiter(|state| &mut state.limits);
-        store.set_fuel(limits.fuel).map_err(plugin_error)?;
-        store.set_epoch_deadline(limits.deadline_ticks.unwrap_or(NO_DEADLINE));
+        store.set_fuel(limits.fuel).map_err(from_wasmtime)?;
+        // wasmtime saturates the deadline, so `u64::MAX` ticks never arrive.
+        store.set_epoch_deadline(limits.deadline_ticks.unwrap_or(u64::MAX));
 
         let mut linker = Linker::new(&self.engine);
         linker
@@ -82,7 +92,7 @@ impl Runtime for WasmtimeRuntime {
             .map_err(instantiate_error)?;
         let memory = instance
             .get_memory(&mut store, "memory")
-            .ok_or_else(|| PluginError::InvalidModule("no memory exported as `memory`".into()))?;
+            .ok_or_else(no_memory)?;
         Ok(WasmtimePlugin {
             store,
             instance,
@@ -152,11 +162,11 @@ impl<H: HostCall + 'static> Plugin for WasmtimePlugin<H> {
     }
 
     fn set_fuel(&mut self, fuel: u64) -> Result<(), PluginError> {
-        self.store.set_fuel(fuel).map_err(plugin_error)
+        self.store.set_fuel(fuel).map_err(from_wasmtime)
     }
 
     fn fuel(&self) -> Result<u64, PluginError> {
-        self.store.get_fuel().map_err(plugin_error)
+        self.store.get_fuel().map_err(from_wasmtime)
     }
 }
 
@@ -199,7 +209,7 @@ impl<H: 'static> CallerPlugin<'_, '_, H> {
         self.caller
             .get_export("memory")
             .and_then(Extern::into_memory)
-            .ok_or_else(|| PluginError::InvalidModule("no memory exported as `memory`".into()))
+            .ok_or_else(no_memory)
     }
 }
 
@@ -224,11 +234,11 @@ impl<H: 'static> Plugin for CallerPlugin<'_, '_, H> {
     }
 
     fn set_fuel(&mut self, fuel: u64) -> Result<(), PluginError> {
-        self.caller.set_fuel(fuel).map_err(plugin_error)
+        self.caller.set_fuel(fuel).map_err(from_wasmtime)
     }
 
     fn fuel(&self) -> Result<u64, PluginError> {
-        self.caller.get_fuel().map_err(plugin_error)
+        self.caller.get_fuel().map_err(from_wasmtime)
     }
 }
 
@@ -251,7 +261,7 @@ fn call_func(
         .collect::<Result<Vec<_>, _>>()?;
     let mut results = vec![Val::I32(0); ty.results().len()];
     func.call(&mut store, &params, &mut results)
-        .map_err(plugin_error)?;
+        .map_err(from_wasmtime)?;
     results.iter().map(from_val).collect()
 }
 
@@ -310,8 +320,11 @@ fn write_memory(
         })
 }
 
-/// Turns a failed call into a [`PluginError`], keeping one raised by the host's `host_call`.
-fn plugin_error(error: wasmtime::Error) -> PluginError {
+// wasmtime reports every failure as one `wasmtime::Error`; these turn it into a `PluginError`.
+
+/// Converts a failed call or fuel operation, keeping an error raised by the host's
+/// `host_call` and naming the fuel and deadline traps.
+fn from_wasmtime(error: wasmtime::Error) -> PluginError {
     let error = match error.downcast::<PluginError>() {
         Ok(error) => return error,
         Err(error) => error,
@@ -327,7 +340,7 @@ fn plugin_error(error: wasmtime::Error) -> PluginError {
 /// function trapped.
 fn instantiate_error(error: wasmtime::Error) -> PluginError {
     if error.downcast_ref::<Trap>().is_some() || error.is::<PluginError>() {
-        plugin_error(error)
+        from_wasmtime(error)
     } else {
         invalid_module(&error)
     }
@@ -335,6 +348,10 @@ fn instantiate_error(error: wasmtime::Error) -> PluginError {
 
 fn invalid_module(error: &wasmtime::Error) -> PluginError {
     PluginError::InvalidModule(format!("{error:#}"))
+}
+
+fn no_memory() -> PluginError {
+    PluginError::InvalidModule("no memory exported as `memory`".into())
 }
 
 #[cfg(test)]
