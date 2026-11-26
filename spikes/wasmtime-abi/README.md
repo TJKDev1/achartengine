@@ -23,8 +23,14 @@ Under load every row got up to twice as slow, but the ratios between rows held.
 | Copy 1M `f64` (8 MB) into plugin memory | 1.0 ms |
 | Copy 1M `f64` back out | 1.1 ms |
 | SMA(20) over 1M rows, natively | 1.3 ms |
-| SMA(20) over 1M rows in wasm, no fuel | 1.4 ms |
-| SMA(20) over 1M rows in wasm, with fuel | 2.4 ms (48M fuel) |
+| SMA(20) over 1M rows in wasm, first call, with fuel | 2.4 ms (48M fuel) |
+| SMA(20) in wasm, later calls, with fuel | 1.8 ms |
+| SMA(20) in wasm, later calls, with epoch interruption | 1.8 ms |
+| SMA(20) in wasm, later calls, neither | 0.8 ms |
+
+The first SMA call grows plugin memory for its 8 MB output; the later-call rows are the fastest of
+five calls that reuse it. They were added with the Extism spike (#6), whose README compares both
+spikes run side by side.
 
 Every acceptance criterion from ADR 0001 passes except the last:
 
@@ -45,11 +51,9 @@ about as long as the SMA itself. Most indicators read the same input columns, so
 copy each column into a plugin once and keep it there across calls, and send only appended rows
 afterwards (DESIGN §6.3). Per-call overhead (180 ns) doesn't matter at this size.
 
-Fuel metering adds about 70% to a tight numeric loop (SMA(20) over 1M rows goes from 1.4 ms to
-2.4 ms; under load the gap ranged from 50% to 100%). Fuel is deterministic, which replay needs
-(D8 in DESIGN). Epoch interruption should cost less and is enough to stop a hung plugin, but this
-spike didn't measure it. #7 should, then choose between epochs for live use and fuel where the
-instruction count has to be reproducible.
+Fuel metering more than doubles the time of a tight numeric loop: SMA(20) over 1M rows goes from
+0.8 ms to 1.8 ms. Epoch interruption was expected to cost less, but costs the same. Fuel is also
+deterministic, which replay needs (D8 in DESIGN), so it can be the only limit.
 
 On the web the host can't be wasmtime. A browser frontend would run plugins on the browser's own
 WebAssembly engine, so `ace-host` needs its engine behind a small interface (instantiate, call an
@@ -57,6 +61,6 @@ export, read and write memory, set limits) with a wasmtime backend and later a b
 and `StoreLimits` don't exist in browsers, so web limits would need fuel instrumentation applied
 to the module before loading and a memory maximum in the module itself.
 
-The shared messages are 100 lines, the plugin 166 and the host 419. Most of the plugin is
-`unsafe` pointer handling that an SDK would hide. wasmtime 51 brings 105 crates and an 11 MB host
+The shared messages are 100 lines, the plugin 166 and the host 447. Most of the plugin is
+`unsafe` pointer handling that an SDK would hide. wasmtime 51 brings 86 crates (normal and build dependencies) and an 11 MB host
 binary. It has its own error type, so the host doesn't need `anyhow`.

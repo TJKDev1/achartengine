@@ -61,7 +61,9 @@ fn main() -> Result<()> {
     check_permission_denied(&engine, &linker, &module, &input)?;
     check_fuel_limit(&engine, &linker, &module)?;
     check_memory_limit(&mut plugin)?;
-    measure_without_fuel(&wasm, &input)?;
+    for metering in [Metering::Fuel, Metering::Epochs, Metering::None] {
+        measure_repeated_sma(&wasm, &input, metering)?;
+    }
     Ok(())
 }
 
@@ -127,6 +129,10 @@ impl Plugin {
         if let Some(fuel) = fuel {
             store.set_fuel(fuel)?;
         }
+        // Only matters on an engine with epoch interruption. Nothing increments the epoch, so
+        // the deadline never fires, but the checks still run. The deadline is added to the
+        // current epoch, so `u64::MAX` would overflow and fire at once.
+        store.set_epoch_deadline(1 << 32);
         let instance: Instance = linker.instantiate(&mut store, module)?;
         Ok(Self {
             memory: instance
@@ -311,25 +317,46 @@ fn check_memory_limit(plugin: &mut Plugin) -> Result<()> {
     Ok(())
 }
 
-/// Runs the SMA on an engine without fuel metering, to see what metering costs.
-fn measure_without_fuel(wasm: &[u8], input: &[f64]) -> Result<()> {
-    let engine = Engine::new(&Config::new())?;
+/// How the engine stops a runaway plugin.
+#[derive(Clone, Copy, Debug)]
+enum Metering {
+    Fuel,
+    Epochs,
+    None,
+}
+
+/// Runs the SMA several times on one resident column and reports the fastest call, so memory
+/// growth from the first call doesn't count.
+fn measure_repeated_sma(wasm: &[u8], input: &[f64], metering: Metering) -> Result<()> {
+    const RUNS: usize = 5;
+    let mut config = Config::new();
+    config.consume_fuel(matches!(metering, Metering::Fuel));
+    config.epoch_interruption(matches!(metering, Metering::Epochs));
+    let engine = Engine::new(&config)?;
     let module = Module::new(&engine, wasm)?;
-    let mut plugin = Plugin::new(&engine, &linker(&engine)?, &module, vec!["storage"], None)?;
+    let fuel = matches!(metering, Metering::Fuel).then_some(FUEL);
+    let mut plugin = Plugin::new(&engine, &linker(&engine)?, &module, vec!["storage"], fuel)?;
     let column = plugin.write_column(input)?;
-    let started = Instant::now();
-    let response = plugin.send(&Request::Sma {
-        period: PERIOD,
-        input: column,
-    })?;
+    let mut fastest = Duration::MAX;
+    for _ in 0..RUNS {
+        if let Some(fuel) = fuel {
+            plugin.store.set_fuel(fuel)?;
+        }
+        let started = Instant::now();
+        let response = plugin.send(&Request::Sma {
+            period: PERIOD,
+            input: column,
+        })?;
+        fastest = fastest.min(started.elapsed());
+        let Response::Column(output) = response else {
+            bail!("SMA failed: {response:?}");
+        };
+        plugin.free_column(output)?;
+    }
     report(
-        "SMA(20) over 1M rows in wasm, no fuel",
-        time(started.elapsed()),
+        &format!("SMA(20), best of {RUNS} later calls, {metering:?}"),
+        time(fastest),
     );
-    let Response::Column(output) = response else {
-        bail!("SMA failed: {response:?}");
-    };
-    plugin.free_column(output)?;
     plugin.free_column(column)
 }
 
