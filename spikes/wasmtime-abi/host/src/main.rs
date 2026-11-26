@@ -318,7 +318,7 @@ fn check_memory_limit(plugin: &mut Plugin) -> Result<()> {
 }
 
 /// How the engine stops a runaway plugin.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Metering {
     Fuel,
     Epochs,
@@ -329,12 +329,17 @@ enum Metering {
 /// growth from the first call doesn't count.
 fn measure_repeated_sma(wasm: &[u8], input: &[f64], metering: Metering) -> Result<()> {
     const RUNS: usize = 5;
+    let label = match metering {
+        Metering::Fuel => "fuel",
+        Metering::Epochs => "epochs",
+        Metering::None => "neither",
+    };
+    let fuel = (metering == Metering::Fuel).then_some(FUEL);
     let mut config = Config::new();
-    config.consume_fuel(matches!(metering, Metering::Fuel));
-    config.epoch_interruption(matches!(metering, Metering::Epochs));
+    config.consume_fuel(fuel.is_some());
+    config.epoch_interruption(metering == Metering::Epochs);
     let engine = Engine::new(&config)?;
     let module = Module::new(&engine, wasm)?;
-    let fuel = matches!(metering, Metering::Fuel).then_some(FUEL);
     let mut plugin = Plugin::new(&engine, &linker(&engine)?, &module, vec!["storage"], fuel)?;
     let column = plugin.write_column(input)?;
     let mut fastest = Duration::MAX;
@@ -354,7 +359,7 @@ fn measure_repeated_sma(wasm: &[u8], input: &[f64], metering: Metering) -> Resul
         plugin.free_column(output)?;
     }
     report(
-        &format!("SMA(20), best of {RUNS} later calls, {metering:?}"),
+        &format!("SMA(20), best of {RUNS} later calls, {label}"),
         time(fastest),
     );
     plugin.free_column(column)

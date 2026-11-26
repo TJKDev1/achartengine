@@ -44,6 +44,7 @@ enum Limit {
     None,
 }
 
+/// One loaded plugin, and the state its host function sees.
 struct SmaPlugin {
     plugin: Plugin,
     state: UserData<State>,
@@ -165,6 +166,10 @@ impl SmaPlugin {
         assert_response(self.send(&Request::Drop { column })?, &Response::Done)
     }
 
+    fn fuel_used(&self) -> u64 {
+        self.plugin.fuel_consumed().unwrap_or_default()
+    }
+
     fn storage(&self) -> Result<String, Error> {
         let state = self.state.get()?;
         let state = state.lock().unwrap_or_else(PoisonError::into_inner);
@@ -196,10 +201,7 @@ fn measure_sma(plugin: &mut SmaPlugin, input: &[f64]) -> Result<(), Error> {
         input: column,
     })?;
     report("SMA(20) over 1M rows in wasm", time(started.elapsed()));
-    report(
-        "fuel used by the SMA call",
-        plugin.plugin.fuel_consumed().unwrap_or_default(),
-    );
+    report("fuel used by the SMA call", plugin.fuel_used());
     let Response::Column(output) = response else {
         bail!("SMA failed: {response:?}");
     };
@@ -236,67 +238,84 @@ fn check_permission_denied(wasm: &[u8], input: &[f64]) -> Result<(), Error> {
 }
 
 fn check_fuel_limit(wasm: &[u8]) -> Result<(), Error> {
-    let mut plugin = SmaPlugin::new(wasm, vec![], Limit::Fuel(10_000_000))?;
+    const SPIN_FUEL: u64 = 10_000_000;
+    let mut plugin = SmaPlugin::new(wasm, vec![], Limit::Fuel(SPIN_FUEL))?;
     plugin.send(&Request::Noop)?;
     let started = Instant::now();
-    let error = match plugin.send(&Request::Spin) {
-        Ok(response) => bail!("spin returned {response:?}"),
-        Err(error) => error,
-    };
+    let error = expect_trap(&mut plugin, &Request::Spin, "plugin ran out of fuel")?;
     report(
-        "infinite loop with 10M fuel",
+        &format!("infinite loop with {}M fuel", SPIN_FUEL / 1_000_000),
         format!("`{error}` after {}", time(started.elapsed())),
     );
-    if !error.to_string().contains("fuel") {
-        bail!("expected an out-of-fuel error, got {error:?}");
-    }
     Ok(())
 }
 
 fn check_timeout(wasm: &[u8]) -> Result<(), Error> {
-    let mut plugin = SmaPlugin::new(wasm, vec![], Limit::Timeout(Duration::from_millis(50)))?;
+    const TIMEOUT: Duration = Duration::from_millis(50);
+    let mut plugin = SmaPlugin::new(wasm, vec![], Limit::Timeout(TIMEOUT))?;
     let column = plugin.put_column(&[1.0, 2.0, 3.0])?;
     let started = Instant::now();
-    let error = match plugin.send(&Request::Spin) {
-        Ok(response) => bail!("spin returned {response:?}"),
-        Err(error) => error,
-    };
+    let error = expect_trap(&mut plugin, &Request::Spin, "timeout")?;
+    let elapsed = started.elapsed();
     report(
-        "infinite loop with a 50 ms timeout",
-        format!("`{error}` after {}", time(started.elapsed())),
+        &format!("infinite loop with a {TIMEOUT:?} timeout"),
+        format!("`{error}` after {}", time(elapsed)),
     );
+    if elapsed < TIMEOUT || elapsed > TIMEOUT * 4 {
+        bail!("timeout fired after {elapsed:?}, expected about {TIMEOUT:?}");
+    }
     check_survives_trap(&mut plugin, column)
 }
 
 /// Extism's memory cap traps the call instead of failing the allocation, unlike wasmtime's
 /// `StoreLimits`, so the plugin can't handle the refusal itself.
 fn check_memory_limit(wasm: &[u8]) -> Result<(), Error> {
+    const HOG_BYTES: u32 = 128 << 20;
     let mut plugin = SmaPlugin::new(wasm, vec![], Limit::Fuel(FUEL))?;
     let column = plugin.put_column(&[1.0, 2.0, 3.0])?;
-    let error = match plugin.send(&Request::Hog { bytes: 128 << 20 }) {
-        Ok(response) => bail!("allocation over the cap returned {response:?}"),
-        Err(error) => error,
-    };
-    report("allocate 128 MiB under a 64 MiB cap", format!("`{error}`"));
+    let error = expect_trap(&mut plugin, &Request::Hog { bytes: HOG_BYTES }, "oom")?;
+    report(
+        &format!(
+            "allocate {} MiB under a {} MiB cap",
+            HOG_BYTES >> 20,
+            MEMORY_PAGES / 16
+        ),
+        format!("`{error}`"),
+    );
     check_survives_trap(&mut plugin, column)
+}
+
+/// Sends a request that must fail the call with exactly `message`, and returns the error.
+fn expect_trap(plugin: &mut SmaPlugin, request: &Request, message: &str) -> Result<Error, Error> {
+    match plugin.send(request) {
+        Ok(response) => bail!("{request:?} returned {response:?}"),
+        Err(error) if error.to_string() == message => Ok(error),
+        Err(error) => bail!("{request:?} failed with `{error}`, expected `{message}`"),
+    }
 }
 
 /// Checks that a plugin still answers after a trap and that its columns are still there.
 fn check_survives_trap(plugin: &mut SmaPlugin, column: ColumnId) -> Result<(), Error> {
     assert_response(plugin.send(&Request::Noop)?, &Response::Done)?;
-    let values = plugin.take_column(column)?;
-    report(
-        "  plugin answers and keeps its columns",
-        values == [1.0, 2.0, 3.0],
-    );
+    let kept = plugin.take_column(column)? == [1.0, 2.0, 3.0];
+    report("  plugin answers and keeps its columns", kept);
+    if !kept {
+        bail!("the plugin lost its column after the trap");
+    }
     Ok(())
 }
 
 /// Runs the SMA several times on one resident column and reports the fastest call, so memory
-/// growth from the first call doesn't count. Extism always turns on epoch interruption, so the
-/// run without fuel still pays for epochs.
+/// growth from the first call doesn't count.
 fn measure_repeated_sma(wasm: &[u8], input: &[f64], limit: Limit) -> Result<(), Error> {
     const RUNS: usize = 5;
+    let metering = match limit {
+        Limit::Fuel(_) => "fuel",
+        // Extism turns on epoch interruption for every plugin, so a run without fuel still
+        // pays for epochs.
+        Limit::None => "epochs only",
+        Limit::Timeout(_) => bail!("time the SMA with fuel or with no limit"),
+    };
     let mut plugin = SmaPlugin::new(wasm, vec!["storage"], limit)?;
     let column = plugin.put_column(input)?;
     let mut fastest = Duration::MAX;
@@ -312,10 +331,6 @@ fn measure_repeated_sma(wasm: &[u8], input: &[f64], limit: Limit) -> Result<(), 
         };
         plugin.drop_column(output)?;
     }
-    let metering = match limit {
-        Limit::Fuel(_) => "fuel",
-        Limit::Timeout(_) | Limit::None => "no fuel",
-    };
     report(
         &format!("SMA(20), best of {RUNS} later calls, {metering}"),
         time(fastest),
@@ -331,6 +346,8 @@ fn bit_identical(a: &[f64], b: &[f64]) -> bool {
             .all(|(x, y)| x.to_bits() == y.to_bits() || (x.is_nan() && y.is_nan()))
 }
 
+/// A copy of the plugin's `rolling_mean`, kept separate on purpose: the check is that the same
+/// code gives the same bits natively and in wasm.
 fn native_sma(values: &[f64], period: usize) -> Vec<f64> {
     let mut sum = 0.0;
     values

@@ -60,18 +60,17 @@ function can reach the plugin's memory through Extism's API. So Extism could onl
 trait of the form `call(name, bytes) -> bytes`, and the ABI would be Extism's instead of living
 once in `ace-host`.
 
-**Columns cost 4–9 times as much to move.** The plugin can still keep columns between calls,
+**Columns take 6 times as long to move.** The plugin can still keep columns between calls,
 because Extism keeps the instance alive, so this spike names columns by id instead of pointer.
 But every column crosses four copies: host values to bytes, bytes into kernel memory, kernel
 memory into the plugin (the PDK reads it 8 bytes at a time, one kernel call each), and bytes to
-`f64`s.
-Moving a 1M-row column in and out takes 14 ms, against 2.2 ms on wasmtime, and 7 times the SMA
-itself. A `Noop` round trip is 8 times as slow, from the same input and output copying.
+`f64`s. Moving a 1M-row column in and out takes 14 ms, against 2.2 ms on wasmtime, and 7 times
+the SMA itself. A `Noop` round trip is 8 times as slow, from copying the request and reply
+through the kernel module.
 
-**Fuel and epochs cost the same.** This corrects the wasmtime spike, which guessed epochs would
-be cheaper. On both spikes, a tight loop slows from 0.8 ms to 1.8 ms with either one. So the
-choice between them doesn't have to be made on speed, and fuel, which is deterministic, can be
-the only limit.
+**Fuel and epochs cost the same.** On wasmtime a tight loop slows from 0.8 ms to 1.8 ms with
+either one, and Extism, which always has epochs on, takes 1.9 ms with or without fuel. So speed
+doesn't decide between them.
 
 **The PDK is pleasant.** `#[plugin_fn]` and `#[host_fn]` turn the plugin into ordinary Rust: 154
 lines with one `unsafe` (calling the host function), against 166 lines with 15 on wasmtime.

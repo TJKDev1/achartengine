@@ -1,5 +1,6 @@
-//! Spike plugin: a `Recompute`-style SMA over a raw `f64` column, plus two misbehaving requests
-//! for testing the host's limits. Built on the Extism PDK; see `spike-abi` for the exports.
+//! Spike plugin: an SMA over a raw `f64` column that recomputes the whole column (DESIGN §6.3),
+//! plus two misbehaving requests for testing the host's limits. Built on the Extism PDK; see
+//! `spike-abi` for the exports.
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -35,7 +36,8 @@ pub fn put_column(bytes: Vec<u8>) -> FnResult<Vec<u8>> {
             f64::from_le_bytes(value)
         })
         .collect();
-    Ok(keep(values).0.to_le_bytes().to_vec())
+    let ColumnId(id) = keep(values);
+    Ok(id.to_le_bytes().to_vec())
 }
 
 /// Returns a column's raw little-endian bytes and drops it.
@@ -88,6 +90,7 @@ fn sma(period: u32, input: ColumnId) -> Response {
         return Response::Error("no such column".into());
     };
     let rows = output.len() as u32;
+    // A stand-in host service, so the host's permission check has something to deny.
     match store_row_count(rows) {
         Ok(()) => Response::Column(keep(output)),
         Err(message) => Response::Error(message),
@@ -123,6 +126,7 @@ fn keep(values: Vec<f64>) -> ColumnId {
     })
 }
 
+/// Loops forever; `black_box` keeps the optimizer from deleting the loop.
 fn spin() -> Response {
     let mut n: u64 = 0;
     loop {
@@ -130,6 +134,7 @@ fn spin() -> Response {
     }
 }
 
+/// Reserves instead of filling, so a refused allocation comes back as an error, not an abort.
 fn hog(bytes: u32) -> Response {
     let mut buffer: Vec<u8> = Vec::new();
     match buffer.try_reserve_exact(bytes as usize) {

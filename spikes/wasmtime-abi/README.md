@@ -29,8 +29,8 @@ Under load every row got up to twice as slow, but the ratios between rows held.
 | SMA(20) in wasm, later calls, neither | 0.8 ms |
 
 The first SMA call grows plugin memory for its 8 MB output; the later-call rows are the fastest of
-five calls that reuse it. They were added with the Extism spike (#6), whose README compares both
-spikes run side by side.
+five calls that reuse it. They were added with the Extism spike (#6). Its README repeats every row
+as the median of three runs alternating with Extism, so its numbers differ from this single run.
 
 Every acceptance criterion from ADR 0001 passes except the last:
 
@@ -53,7 +53,8 @@ afterwards (DESIGN §6.3). Per-call overhead (180 ns) doesn't matter at this siz
 
 Fuel metering more than doubles the time of a tight numeric loop: SMA(20) over 1M rows goes from
 0.8 ms to 1.8 ms. Epoch interruption was expected to cost less, but costs the same. Fuel is also
-deterministic, which replay needs (D8 in DESIGN), so it can be the only limit.
+deterministic, which replay needs (D8 in DESIGN). Fuel doesn't bound time spent waiting in
+`host_call`, so #7 decides whether live use also needs a wall-clock limit.
 
 On the web the host can't be wasmtime. A browser frontend would run plugins on the browser's own
 WebAssembly engine, so `ace-host` needs its engine behind a small interface (instantiate, call an
@@ -62,5 +63,7 @@ and `StoreLimits` don't exist in browsers, so web limits would need fuel instrum
 to the module before loading and a memory maximum in the module itself.
 
 The shared messages are 100 lines, the plugin 166 and the host 447. Most of the plugin is
-`unsafe` pointer handling that an SDK would hide. wasmtime 51 brings 86 crates (normal and build dependencies) and an 11 MB host
-binary. It has its own error type, so the host doesn't need `anyhow`.
+`unsafe` pointer handling that an SDK would hide.
+
+wasmtime 51 brings 86 crates, counting normal and build dependencies, and an 11 MB host binary.
+It has its own error type, so the host doesn't need `anyhow`.
