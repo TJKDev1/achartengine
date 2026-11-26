@@ -117,6 +117,7 @@ impl StrValues {
             let code = if let Some(&code) = code_of.get(s) {
                 code
             } else {
+                // First time we see `s`: give it the next code.
                 let code = u32::try_from(encoded.dictionary.len()).ok()?;
                 code_of.insert(s, code);
                 encoded.dictionary.push(String::from(s));

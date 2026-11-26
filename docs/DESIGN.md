@@ -1,6 +1,6 @@
 # AChartEngine — Design
 
-Status: **draft**. Brainstormed 2026-11-25. Only the dataset and column types (§5) are implemented so far.
+Status: **draft**. Brainstormed 2026-11-25. Implementation has started; see `crates/`.
 
 ## 1. Vision
 
@@ -85,11 +85,10 @@ Charts, plugin canvases and the widget library all emit these. Every frontend im
 
 ## 5. Data model
 
-- A **dataset** is a set of named, typed **columns** of equal length: `f64`, `i64`, timestamp, string-dictionary, bool. One column may be marked as the **key** (often time) and must be sorted.
+- A **dataset** is a set of named, typed **columns** of equal length: `f64`, `i64`, timestamp, string-dictionary, bool. One column may be the **key** (often time). It must be an `f64`, `i64` or timestamp column in ascending order. Equal neighbours are allowed because ticks can share a timestamp, but NaN is not. A dataset checks this when it is built, so the rest of the engine can rely on it.
   - A timestamp is an `i64` of nanoseconds since the Unix epoch, UTC, which covers 1677–2262. Time zones are a display concern.
   - String columns store each distinct string once, plus a `u32` code per row.
-  - A key is an `f64`, `i64` or timestamp column in ascending order. Equal neighbours are allowed because ticks can share a timestamp; NaN is not.
-  - `Dataset::new` checks all of this, so the rest of the engine can rely on it. There are no nulls yet.
+  - Columns have no nulls yet.
 - A **scale** maps a column's domain to screen space. Types: linear, log, time, **session-time** (hides non-trading gaps; supplied by a calendar plugin), band/category, percent, indexed-to-100.
 - **Bars** are just a dataset with `t, open, high, low, close, volume` columns. Ticks, order book snapshots and events are other datasets. Charts like point & figure, depth and volume profile use non-time key columns.
 - Downsampling and level of detail for huge datasets is a **core** responsibility, not a plugin one.

@@ -28,9 +28,14 @@ impl Dataset {
     ///
     /// # Errors
     ///
-    /// Returns the first of these that applies: two columns share a name, the columns differ
-    /// in length, `key` names no column, the key column has the wrong type, contains NaN, or
-    /// is out of order. The columns are dropped with the error.
+    /// The checks run in this order, and the first failure is returned:
+    ///
+    /// 1. two columns share a name,
+    /// 2. the columns differ in length,
+    /// 3. `key` names no column,
+    /// 4. the key is a string or bool column,
+    /// 5. an `f64` key contains NaN,
+    /// 6. the key is out of order.
     pub fn new(columns: Vec<Column>, key: Option<&str>) -> Result<Self, DatasetError> {
         check_unique_names(&columns)?;
         let row_count = check_equal_lengths(&columns)?;
@@ -182,7 +187,8 @@ fn check_equal_lengths(columns: &[Column]) -> Result<usize, DatasetError> {
     }
 }
 
-/// Returns the index of the key column after checking that it can be and is sorted.
+/// Finds the key column by name, checks that its type has an order and its values ascend, and
+/// returns its index.
 fn find_sorted_key(columns: &[Column], name: &str) -> Result<usize, DatasetError> {
     let Some((index, column)) = columns.iter().enumerate().find(|(_, c)| c.name == name) else {
         return Err(DatasetError::KeyNotFound {
@@ -216,10 +222,12 @@ fn check_no_nan(column: &Column, values: &[f64]) -> Result<(), DatasetError> {
     }
 }
 
-/// Checks that `values` never decrease. NaN must already be ruled out, since it compares false.
+/// Checks that `values` never decrease. NaN must already be ruled out, because `NaN > x` is
+/// false and would pass as sorted.
 fn check_sorted<T: PartialOrd>(column: &Column, values: &[T]) -> Result<(), DatasetError> {
     let mut pairs = values.iter().zip(values.iter().skip(1));
     match pairs.position(|(previous, next)| previous > next) {
+        // Pair `n` is rows `n` and `n + 1`; the later row is the one out of order.
         Some(pair) => Err(DatasetError::KeyNotSorted {
             column: column.name.clone(),
             row: pair + 1,
@@ -255,7 +263,7 @@ mod tests {
             Some("t"),
         )
         .unwrap();
-        assert_eq!(bars.row_count(), 3, "row count");
+        assert_eq!(bars.row_count(), 3, "three bars");
         assert_eq!(bars.columns().len(), 2, "column count");
         assert_eq!(bars.key().map(|c| c.name.as_str()), Some("t"), "key");
         assert_eq!(
@@ -297,7 +305,7 @@ mod tests {
     #[test]
     fn dataset_without_columns_has_no_rows() {
         let dataset = Dataset::new(Vec::new(), None).unwrap();
-        assert_eq!(dataset.row_count(), 0, "row count");
+        assert_eq!(dataset.row_count(), 0, "no columns means no rows");
     }
 
     #[test]
@@ -314,7 +322,7 @@ mod tests {
             Err(DatasetError::DuplicateName {
                 column: "close".to_owned()
             }),
-            "duplicate"
+            "the second `close` is the duplicate"
         );
     }
 
@@ -328,7 +336,7 @@ mod tests {
                 expected: 2,
                 found: 1
             }),
-            "length mismatch"
+            "`close` is shorter than `t`"
         );
     }
 
@@ -340,7 +348,7 @@ mod tests {
             Err(DatasetError::KeyNotFound {
                 column: "time".to_owned()
             }),
-            "missing key"
+            "no column is named `time`"
         );
     }
 
@@ -387,19 +395,21 @@ mod tests {
                 column: "n".to_owned(),
                 row: 1
             }),
-            "i64 key"
+            "i64 keys are checked too"
         );
     }
 
     #[test]
     fn nan_in_a_float_key_is_rejected() {
-        for (values, row) in [
-            (&[f64::NAN, 1.0][..], 0),
-            (&[1.0, f64::NAN][..], 1),
-            (&[1.0, 2.0, f64::NAN][..], 2),
-            (&[f64::NAN][..], 0),
-            (&[3.0, 1.0, f64::NAN][..], 2),
-        ] {
+        let cases: [(&[f64], usize); 5] = [
+            (&[f64::NAN, 1.0], 0),
+            (&[1.0, f64::NAN], 1),
+            (&[1.0, 2.0, f64::NAN], 2),
+            (&[f64::NAN], 0),
+            // NaN is reported even when an earlier row is out of order.
+            (&[3.0, 1.0, f64::NAN], 2),
+        ];
+        for (values, row) in cases {
             let result = Dataset::new(vec![prices("price", values)], Some("price"));
             assert_eq!(
                 result,
@@ -414,7 +424,7 @@ mod tests {
 
     #[test]
     fn the_first_failed_check_is_reported() {
-        // Duplicate names, unequal lengths and an unsorted key at once: names are checked first.
+        // Duplicate names, unequal lengths and an unsorted key at once.
         let columns = vec![times(&[2, 1]), times(&[1]), prices("close", &[1.0, 2.0])];
         assert!(
             matches!(
@@ -423,6 +433,7 @@ mod tests {
             ),
             "names before lengths"
         );
+        // Unequal lengths and an unsorted key.
         let columns = vec![times(&[2, 1]), prices("close", &[1.0])];
         assert!(
             matches!(
@@ -434,7 +445,7 @@ mod tests {
     }
 
     #[test]
-    fn errors_name_the_column() {
+    fn error_messages() {
         let cases = [
             (
                 DatasetError::DuplicateName {
