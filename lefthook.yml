@@ -9,16 +9,14 @@ pre-commit:
       run: cargo fmt --all -- --check
     - name: prose
       glob: "*.{md,rs}"
-      # Scans the whole repo, not just staged files. It takes about a second, and CI keeps
-      # main clean, so any hit is in something you changed.
-      run: bash scripts/check-prose.sh
+      run: bash scripts/check-prose.sh {staged_files}
 
 commit-msg:
   jobs:
     - name: conventional-commit
       run: sh scripts/check-commit-msg.sh {1}
     - name: prose
-      run: bash scripts/check-prose.sh {1}
+      run: bash scripts/check-prose.sh --commit-msg {1}
 
 pre-push:
   # Run one after the other: parallel cargo runs just wait on the build lock.

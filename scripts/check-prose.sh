@@ -2,13 +2,13 @@
 # Flags padding and sales words in docs, Rust comments and commit messages (docs/STYLE.md).
 #
 # With no arguments it checks every tracked Markdown file and every Rust line with a comment on
-# it. With arguments (the commit-msg hook passes the message file) it checks those files as
-# commit messages. A line containing `prose:allow` is skipped. In Markdown, code blocks, inline
-# code and URLs are ignored.
+# it. Given files, it checks only those (the pre-commit hook passes the staged ones). With
+# `--commit-msg FILE` it checks a commit message. A line containing `prose:allow` is skipped. In
+# Markdown, code blocks, inline code and URLs are ignored.
 #
 # Known gap: a phrase split across a line break ("in order" / "to") isn't caught.
 #
-# Usage: scripts/check-prose.sh [file...]
+# Usage: scripts/check-prose.sh [file... | --commit-msg FILE]
 set -euo pipefail
 
 # Keep in sync with "Words to avoid" in docs/STYLE.md. Matched case-insensitively as whole words.
@@ -48,24 +48,31 @@ check() {
     { grep -Eiw -- "$pattern" || true; } | awk -v label="$label" '{ print label ":" $0 }'
 }
 
+# Checks one Markdown or Rust file. Paths are relative to the repo root.
+scan_file() {
+  local file=$1
+  [[ $file =~ $skip ]] && return 0
+  [ -r "$file" ] || { echo "prose: can't read $file" >&2; return 2; }
+  case $file in
+    *.rs) check "$file" "$rust_comment" < "$file" ;;
+    *.md) strip_markdown_code < "$file" | check "$file" . ;;
+    *) ;;
+  esac
+}
+
 scan() {
-  if [ "$#" -gt 0 ]; then
-    for file in "$@"; do
-      [ -r "$file" ] || { echo "prose: can't read $file" >&2; return 2; }
-      # Lines starting with '#' are git's template, and `git commit -v` puts the diff after
-      # the scissors line, so neither is part of the message.
-      sed '/^# -* >8 -*$/,$d' "$file" | check "$file" '^[^#]'
-    done
+  if [ "${1-}" = --commit-msg ]; then
+    local file=${2:?usage: check-prose.sh --commit-msg FILE}
+    [ -r "$file" ] || { echo "prose: can't read $file" >&2; return 2; }
+    # Lines starting with '#' are git's template, and `git commit -v` puts the diff after the
+    # scissors line, so neither is part of the message.
+    sed '/^# -* >8 -*$/,$d' "$file" | check "$file" '^[^#]'
+  elif [ "$#" -gt 0 ]; then
+    for file in "$@"; do scan_file "$file"; done
   else
     # From the root, so `git ls-files` sees the whole repo.
     cd "$(git rev-parse --show-toplevel)"
-    git ls-files '*.md' '*.rs' | while IFS= read -r file; do
-      [[ $file =~ $skip ]] && continue
-      case $file in
-        *.rs) check "$file" "$rust_comment" < "$file" ;;
-        *) strip_markdown_code < "$file" | check "$file" . ;;
-      esac
-    done
+    git ls-files '*.md' '*.rs' | while IFS= read -r file; do scan_file "$file"; done
   fi
 }
 
