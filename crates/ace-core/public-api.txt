@@ -1,2 +1,189 @@
 pub mod ace_core
+pub enum ace_core::ColumnType
+pub ace_core::ColumnType::Bool
+pub ace_core::ColumnType::F64
+pub ace_core::ColumnType::I64
+pub ace_core::ColumnType::Str
+pub ace_core::ColumnType::Timestamp
+impl core::clone::Clone for ace_core::ColumnType
+pub fn ace_core::ColumnType::clone(&self) -> Self
+impl core::cmp::Eq for ace_core::ColumnType
+impl core::cmp::Ord for ace_core::ColumnType
+pub fn ace_core::ColumnType::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for ace_core::ColumnType
+pub fn ace_core::ColumnType::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for ace_core::ColumnType
+pub fn ace_core::ColumnType::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for ace_core::ColumnType
+pub fn ace_core::ColumnType::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for ace_core::ColumnType
+pub fn ace_core::ColumnType::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for ace_core::ColumnType
+impl core::marker::StructuralPartialEq for ace_core::ColumnType
+impl core::marker::Forget for ace_core::ColumnType
+impl core::marker::Freeze for ace_core::ColumnType
+impl core::marker::Move for ace_core::ColumnType
+impl core::marker::Send for ace_core::ColumnType
+impl core::marker::Sync for ace_core::ColumnType
+impl core::marker::Unpin for ace_core::ColumnType
+impl core::marker::UnsafeUnpin for ace_core::ColumnType
+impl core::panic::unwind_safe::RefUnwindSafe for ace_core::ColumnType
+impl core::panic::unwind_safe::UnwindSafe for ace_core::ColumnType
+pub enum ace_core::ColumnValues
+pub ace_core::ColumnValues::Bool(alloc::vec::Vec<bool>)
+pub ace_core::ColumnValues::F64(alloc::vec::Vec<f64>)
+pub ace_core::ColumnValues::I64(alloc::vec::Vec<i64>)
+pub ace_core::ColumnValues::Str(ace_core::StrValues)
+pub ace_core::ColumnValues::Timestamp(alloc::vec::Vec<ace_core::Timestamp>)
+impl ace_core::ColumnValues
+pub fn ace_core::ColumnValues::column_type(&self) -> ace_core::ColumnType
+pub fn ace_core::ColumnValues::is_empty(&self) -> bool
+pub fn ace_core::ColumnValues::len(&self) -> usize
+impl core::clone::Clone for ace_core::ColumnValues
+pub fn ace_core::ColumnValues::clone(&self) -> Self
+impl core::cmp::PartialEq for ace_core::ColumnValues
+pub fn ace_core::ColumnValues::eq(&self, &Self) -> bool
+impl core::fmt::Debug for ace_core::ColumnValues
+pub fn ace_core::ColumnValues::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ace_core::ColumnValues
+impl core::marker::Forget for ace_core::ColumnValues
+impl core::marker::Freeze for ace_core::ColumnValues
+impl core::marker::Move for ace_core::ColumnValues
+impl core::marker::Send for ace_core::ColumnValues
+impl core::marker::Sync for ace_core::ColumnValues
+impl core::marker::Unpin for ace_core::ColumnValues
+impl core::marker::UnsafeUnpin for ace_core::ColumnValues
+impl core::panic::unwind_safe::RefUnwindSafe for ace_core::ColumnValues
+impl core::panic::unwind_safe::UnwindSafe for ace_core::ColumnValues
+pub enum ace_core::DatasetError
+pub ace_core::DatasetError::DuplicateName
+pub ace_core::DatasetError::DuplicateName::column: alloc::string::String
+pub ace_core::DatasetError::KeyNotFound
+pub ace_core::DatasetError::KeyNotFound::column: alloc::string::String
+pub ace_core::DatasetError::KeyNotSorted
+pub ace_core::DatasetError::KeyNotSorted::column: alloc::string::String
+pub ace_core::DatasetError::KeyNotSorted::row: usize
+pub ace_core::DatasetError::KeyTypeNotSortable
+pub ace_core::DatasetError::KeyTypeNotSortable::column: alloc::string::String
+pub ace_core::DatasetError::KeyTypeNotSortable::column_type: ace_core::ColumnType
+pub ace_core::DatasetError::LengthMismatch
+pub ace_core::DatasetError::LengthMismatch::column: alloc::string::String
+pub ace_core::DatasetError::LengthMismatch::expected: usize
+pub ace_core::DatasetError::LengthMismatch::found: usize
+impl core::clone::Clone for ace_core::DatasetError
+pub fn ace_core::DatasetError::clone(&self) -> Self
+impl core::cmp::Eq for ace_core::DatasetError
+impl core::cmp::PartialEq for ace_core::DatasetError
+pub fn ace_core::DatasetError::eq(&self, &Self) -> bool
+impl core::error::Error for ace_core::DatasetError
+impl core::fmt::Debug for ace_core::DatasetError
+pub fn ace_core::DatasetError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for ace_core::DatasetError
+pub fn ace_core::DatasetError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ace_core::DatasetError
+impl core::marker::Forget for ace_core::DatasetError
+impl core::marker::Freeze for ace_core::DatasetError
+impl core::marker::Move for ace_core::DatasetError
+impl core::marker::Send for ace_core::DatasetError
+impl core::marker::Sync for ace_core::DatasetError
+impl core::marker::Unpin for ace_core::DatasetError
+impl core::marker::UnsafeUnpin for ace_core::DatasetError
+impl core::panic::unwind_safe::RefUnwindSafe for ace_core::DatasetError
+impl core::panic::unwind_safe::UnwindSafe for ace_core::DatasetError
+pub struct ace_core::Column
+pub ace_core::Column::name: alloc::string::String
+pub ace_core::Column::values: ace_core::ColumnValues
+impl ace_core::Column
+pub fn ace_core::Column::new(impl core::convert::Into<alloc::string::String>, ace_core::ColumnValues) -> Self
+impl core::clone::Clone for ace_core::Column
+pub fn ace_core::Column::clone(&self) -> Self
+impl core::cmp::PartialEq for ace_core::Column
+pub fn ace_core::Column::eq(&self, &Self) -> bool
+impl core::fmt::Debug for ace_core::Column
+pub fn ace_core::Column::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ace_core::Column
+impl core::marker::Forget for ace_core::Column
+impl core::marker::Freeze for ace_core::Column
+impl core::marker::Move for ace_core::Column
+impl core::marker::Send for ace_core::Column
+impl core::marker::Sync for ace_core::Column
+impl core::marker::Unpin for ace_core::Column
+impl core::marker::UnsafeUnpin for ace_core::Column
+impl core::panic::unwind_safe::RefUnwindSafe for ace_core::Column
+impl core::panic::unwind_safe::UnwindSafe for ace_core::Column
+pub struct ace_core::Dataset
+impl ace_core::Dataset
+pub fn ace_core::Dataset::column(&self, &str) -> core::option::Option<&ace_core::Column>
+pub fn ace_core::Dataset::columns(&self) -> &[ace_core::Column]
+pub fn ace_core::Dataset::key(&self) -> core::option::Option<&ace_core::Column>
+pub fn ace_core::Dataset::new(alloc::vec::Vec<ace_core::Column>, core::option::Option<&str>) -> core::result::Result<Self, ace_core::DatasetError>
+pub fn ace_core::Dataset::row_count(&self) -> usize
+impl core::clone::Clone for ace_core::Dataset
+pub fn ace_core::Dataset::clone(&self) -> Self
+impl core::cmp::PartialEq for ace_core::Dataset
+pub fn ace_core::Dataset::eq(&self, &Self) -> bool
+impl core::fmt::Debug for ace_core::Dataset
+pub fn ace_core::Dataset::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ace_core::Dataset
+impl core::marker::Forget for ace_core::Dataset
+impl core::marker::Freeze for ace_core::Dataset
+impl core::marker::Move for ace_core::Dataset
+impl core::marker::Send for ace_core::Dataset
+impl core::marker::Sync for ace_core::Dataset
+impl core::marker::Unpin for ace_core::Dataset
+impl core::marker::UnsafeUnpin for ace_core::Dataset
+impl core::panic::unwind_safe::RefUnwindSafe for ace_core::Dataset
+impl core::panic::unwind_safe::UnwindSafe for ace_core::Dataset
+pub struct ace_core::StrValues
+impl ace_core::StrValues
+pub fn ace_core::StrValues::codes(&self) -> &[u32]
+pub fn ace_core::StrValues::dictionary(&self) -> &[alloc::string::String]
+pub fn ace_core::StrValues::from_strs<'a>(impl core::iter::traits::collect::IntoIterator<Item = &'a str>) -> core::option::Option<Self>
+pub fn ace_core::StrValues::get(&self, usize) -> core::option::Option<&str>
+pub fn ace_core::StrValues::is_empty(&self) -> bool
+pub fn ace_core::StrValues::len(&self) -> usize
+impl core::clone::Clone for ace_core::StrValues
+pub fn ace_core::StrValues::clone(&self) -> Self
+impl core::cmp::Eq for ace_core::StrValues
+impl core::cmp::PartialEq for ace_core::StrValues
+pub fn ace_core::StrValues::eq(&self, &Self) -> bool
+impl core::default::Default for ace_core::StrValues
+pub fn ace_core::StrValues::default() -> Self
+impl core::fmt::Debug for ace_core::StrValues
+pub fn ace_core::StrValues::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ace_core::StrValues
+impl core::marker::Forget for ace_core::StrValues
+impl core::marker::Freeze for ace_core::StrValues
+impl core::marker::Move for ace_core::StrValues
+impl core::marker::Send for ace_core::StrValues
+impl core::marker::Sync for ace_core::StrValues
+impl core::marker::Unpin for ace_core::StrValues
+impl core::marker::UnsafeUnpin for ace_core::StrValues
+impl core::panic::unwind_safe::RefUnwindSafe for ace_core::StrValues
+impl core::panic::unwind_safe::UnwindSafe for ace_core::StrValues
+pub struct ace_core::Timestamp(pub i64)
+impl core::clone::Clone for ace_core::Timestamp
+pub fn ace_core::Timestamp::clone(&self) -> Self
+impl core::cmp::Eq for ace_core::Timestamp
+impl core::cmp::Ord for ace_core::Timestamp
+pub fn ace_core::Timestamp::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for ace_core::Timestamp
+pub fn ace_core::Timestamp::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for ace_core::Timestamp
+pub fn ace_core::Timestamp::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for ace_core::Timestamp
+pub fn ace_core::Timestamp::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for ace_core::Timestamp
+pub fn ace_core::Timestamp::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for ace_core::Timestamp
+impl core::marker::StructuralPartialEq for ace_core::Timestamp
+impl core::marker::Forget for ace_core::Timestamp
+impl core::marker::Freeze for ace_core::Timestamp
+impl core::marker::Move for ace_core::Timestamp
+impl core::marker::Send for ace_core::Timestamp
+impl core::marker::Sync for ace_core::Timestamp
+impl core::marker::Unpin for ace_core::Timestamp
+impl core::marker::UnsafeUnpin for ace_core::Timestamp
+impl core::panic::unwind_safe::RefUnwindSafe for ace_core::Timestamp
+impl core::panic::unwind_safe::UnwindSafe for ace_core::Timestamp
 pub const ace_core::VERSION: &str

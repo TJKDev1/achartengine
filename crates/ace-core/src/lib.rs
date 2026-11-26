@@ -11,6 +11,12 @@
 
 extern crate alloc;
 
+mod column;
+mod dataset;
+
+pub use column::{Column, ColumnType, ColumnValues, StrValues, Timestamp};
+pub use dataset::{Dataset, DatasetError};
+
 /// Version of this crate, as set in `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
