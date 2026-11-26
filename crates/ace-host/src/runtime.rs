@@ -246,4 +246,19 @@ mod tests {
             "the error names the export"
         );
     }
+
+    #[test]
+    fn errors_read_as_sentences() {
+        use alloc::string::ToString;
+        assert_eq!(
+            PluginError::OutOfBounds { ptr: 8, len: 4 }.to_string(),
+            "4 bytes at 8 are outside plugin memory",
+            "out of bounds"
+        );
+        assert_eq!(
+            PluginError::NoSuchExport("render".into()).to_string(),
+            "plugin has no export `render` with these arguments",
+            "missing export"
+        );
+    }
 }

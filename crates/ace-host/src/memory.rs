@@ -19,7 +19,9 @@ impl Region {
     /// Packs the region into the `u64` that exports and `host_call` return.
     #[must_use]
     pub fn pack(self) -> u64 {
-        u64::from(self.ptr) << 32 | u64::from(self.len)
+        // `+` rather than `|`: the halves don't overlap, so both give the same result, and
+        // `cargo mutants` can't catch `|` turning into `^`, which also gives the same result.
+        (u64::from(self.ptr) << 32) + u64::from(self.len)
     }
 
     /// Unpacks a region from an export's or `host_call`'s `u64` result.

@@ -84,7 +84,13 @@ fn host_call_can_allocate_its_answer_in_the_plugin() {
     let [answer] = results[..] else {
         panic!("`ask_host` returns one value, got {results:?}");
     };
-    let reply = copy_out(&mut plugin, Region::unpack(answer)).unwrap();
+    let answer = Region::unpack(answer);
+    assert_eq!(
+        answer.ptr,
+        request.ptr + request.len,
+        "the host placed its answer with the plugin's bump allocator"
+    );
+    let reply = copy_out(&mut plugin, answer).unwrap();
     assert_eq!(reply, b"cba", "the host's answer reaches the plugin");
     assert_eq!(
         *requests.borrow(),
@@ -121,16 +127,64 @@ fn fuel_stops_an_infinite_loop_and_can_be_refilled() {
         plugin.call("alloc", &[8]).is_ok(),
         "the plugin works again with new fuel"
     );
-    assert!(plugin.fuel().unwrap() < 1_000, "the call used fuel");
+    let left = plugin.fuel().unwrap();
+    assert!(
+        0 < left && left < 1_000,
+        "the call used some of the new fuel, not all, got {left}"
+    );
+}
+
+/// Refuels the plugin from inside `host_call` and answers with the fuel it then has.
+struct Refuel;
+
+impl HostCall for Refuel {
+    fn host_call(
+        &mut self,
+        plugin: &mut dyn Plugin,
+        _ptr: u32,
+        _len: u32,
+    ) -> Result<u64, PluginError> {
+        plugin.set_fuel(500)?;
+        plugin.fuel()
+    }
+}
+
+#[test]
+fn host_call_can_read_and_set_fuel() {
+    let runtime = WasmtimeRuntime::new().unwrap();
+    let module = runtime.load(PLUGIN.as_bytes()).unwrap();
+    let mut plugin = runtime.instantiate(&module, limits(), Refuel).unwrap();
+    assert_eq!(
+        plugin.call("ask_host", &[0, 0]),
+        Ok(vec![500]),
+        "the host sees the fuel it set"
+    );
+}
+
+#[test]
+fn a_trap_in_the_start_function_is_a_trap() {
+    let runtime = WasmtimeRuntime::new().unwrap();
+    let module = runtime
+        .load(b"(module (memory (export \"memory\") 1) (func $start unreachable) (start $start))")
+        .unwrap();
+    assert!(
+        matches!(
+            runtime.instantiate(&module, limits(), Refuel),
+            Err(PluginError::Trap(_))
+        ),
+        "the module is valid; running it failed"
+    );
 }
 
 #[test]
 fn the_deadline_stops_an_infinite_loop() {
     let runtime = WasmtimeRuntime::new().unwrap();
+    // Enough fuel to outlast the deadline by far, but finite: without ticks the call ends
+    // with `OutOfFuel` instead of hanging the test.
     let mut plugin = instantiate(
         &runtime,
         Limits {
-            fuel: u64::MAX,
+            fuel: 1 << 32,
             deadline_ticks: Some(1),
             ..limits()
         },
@@ -216,14 +270,14 @@ fn growing_a_table_past_its_cap_fails_inside_the_plugin() {
             ..limits()
         },
     );
+    assert_eq!(
+        plugin.call("grow_table", &[1]),
+        Ok(vec![0]),
+        "a table may grow under the cap"
+    );
     let cap = u64::try_from(TABLE_ELEMENTS).unwrap();
     assert_eq!(
         plugin.call("grow_table", &[cap]),
-        Ok(vec![0]),
-        "a table may grow to the cap"
-    );
-    assert_eq!(
-        plugin.call("grow_table", &[1]),
         Ok(vec![u64::from(u32::MAX)]),
         "`table.grow` returns -1 past the cap"
     );
@@ -288,5 +342,17 @@ fn modules_outside_the_abi_are_rejected() {
             Err(PluginError::InvalidModule(_))
         ),
         "relaxed SIMD, whose results differ between machines"
+    );
+}
+
+#[test]
+fn debug_output_hides_wasmtime_internals() {
+    let runtime = WasmtimeRuntime::new().unwrap();
+    assert_eq!(format!("{runtime:?}"), "WasmtimeRuntime { .. }", "runtime");
+    assert_eq!(format!("{:?}", runtime.ticker()), "Ticker { .. }", "ticker");
+    assert_eq!(
+        format!("{:?}", instantiate(&runtime, limits())),
+        "WasmtimePlugin { deadline_ticks: None, .. }",
+        "plugin"
     );
 }
