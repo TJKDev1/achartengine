@@ -22,7 +22,7 @@ The **engine** and the **tool** built on it are strictly separated, and everythi
 
 | # | Topic | Decision |
 |---|-------|----------|
-| D1 | Platform | Headless core with frontends as adapters. The reference app is **native desktop only**. Core and plugin host must **still compile to `wasm32`** (checked in CI) so a web or embedded frontend stays possible. |
+| D1 | Platform | Headless core with frontends as adapters. The reference app is **native desktop only**. Core and plugin host must **still compile to `wasm32`** (checked in CI) so a web or embedded frontend stays possible. The WASM runtime and the real I/O are per platform ([ADR 0005](adr/0005-split-host-from-runtime.md)). |
 | D2 | Extensions | **Sandboxed WASM plugins.** |
 | D3 | Product | The engine plus a **reference app** that dogfoods the plugin API. |
 | D4 | Data model | Generic **columns + scales**. Time series is only the most common case. The x-axis is not always time. |
@@ -43,8 +43,8 @@ The **engine** and the **tool** built on it are strictly separated, and everythi
 ├──────────────────────────────────────────────────────────────────────┤
 │ Frontend adapter: wgpu + winit — rasterizes draw lists, sends input  │
 ├──────────────────────────────────────────────────────────────────────┤
-│ Plugin host: loads WASM, enforces permissions + resource limits,     │
-│ brokers I/O, secrets, storage                                        │
+│ Plugin host: ABI, permissions, I/O broker, secrets, storage;         │
+│ runs WASM through a runtime backend (wasmtime on native)             │
 ├──────────────────────────────────────────────────────────────────────┤
 │ Engine core: data model · dataflow graph · scheduler · logical clock │
 │ · layout · scales · draw-list generation · hit-testing · state/undo  │
@@ -76,9 +76,10 @@ Charts, plugin canvases and the widget library all emit these. Every frontend im
 - Accessibility: the library emits a semantic tree beside the draw list so frontends can expose it to screen readers.
 
 ### 4.4 Plugin host (`ace-host`)
-- Runs `wasmtime`, implements the plugin ABI (§12.1), and enforces permissions.
-- Applies fuel/time and memory limits.
-- Handles all real I/O (network, storage, secrets) on behalf of plugins.
+- Implements the plugin ABI (§12.1), validates modules and enforces permissions.
+- Brokers I/O (network, storage, secrets) for plugins. The app or frontend implements the actual I/O.
+- Runs plugins through a runtime trait, so `ace-host` has no wasmtime dependency and builds for `wasm32` ([ADR 0005](adr/0005-split-host-from-runtime.md)).
+- A runtime backend implements the trait and applies fuel/time and memory limits. `ace-host-wasmtime` is the native one; a browser backend would use the browser's `WebAssembly` API.
 
 ### 4.5 Frontend (`ace-frontend-wgpu`)
 - Renders draw lists and the widget semantic tree, forwards input, and manages windows.
@@ -148,7 +149,7 @@ The SDK's `Recompute` adapter turns all four into "here is the full input, give 
 - The engine owns a **logical clock**. Plugins never read wall-clock time; they get the time from the engine.
 - Randomness only comes from a **seeded host RNG**.
 - Node execution order is deterministic (stable topological order), and there is no plugin-visible concurrency.
-- Non-determinism only enters at **`source` and `broker` boundaries**. Their outputs are **journaled** (recorded), so any live session can be replayed exactly. Bar replay and backtests use the same mechanism.
+- Non-determinism only enters at **`source` and `broker` boundaries**. Their outputs are **journaled** (recorded), so any live session can be replayed exactly. Replays and backtests limit plugins by fuel only, and the journal records the runtime backend ([ADR 0005](adr/0005-split-host-from-runtime.md)). Bar replay and backtests use the same mechanism.
 - Floating point: avoid fast-math. WASM float semantics are deterministic apart from NaN bit patterns, which we canonicalize.
 
 ## 8. Permissions (D9)
@@ -163,7 +164,7 @@ Plugins declare these in their manifest. The user approves them at install time,
 - `notify`: OS notifications and sounds.
 - `clipboard`, `files: pick` (a file chosen by the user through a dialog).
 
-Every plugin also gets fuel/time limits per call and memory caps, so a broken plugin can't freeze the app.
+Every plugin also gets fuel/time limits per call and memory caps, so a broken plugin can't freeze the app. The runtime backend enforces them. Fuel counts, and so the point where a plugin is stopped, differ between backends ([ADR 0005](adr/0005-split-host-from-runtime.md)).
 
 ## 9. Capability catalogue
 
@@ -247,7 +248,8 @@ crates/
   ace-core/            data model, graph, scheduler, clock, scales, layout
   ace-draw/            draw-command types (shared by everyone)
   ace-ui/              optional widget library → draw commands
-  ace-host/            wasmtime host, permissions, I/O brokering
+  ace-host/            plugin host: ABI, permissions, I/O broker (no_std, builds for wasm32)
+  ace-host-wasmtime/   native WASM runtime backend for ace-host
   ace-frontend-wgpu/   native renderer + input
   ace-render-cpu/      headless rasterizer for PNG export (tiny-skia)
   ace-py/              PyO3 bindings
@@ -259,7 +261,7 @@ app/                   reference app
 
 ## 12. Open questions
 
-1. **Plugin ABI: leaning home-made** (over WIT/Component Model). Shape: a few fixed exports (`alloc`, `free`, `call`) and one host import (`host_call`). Control messages are serialized (MessagePack or similar); column data is passed as raw little-endian arrays, with no per-row encoding. Still open: write it directly on `wasmtime`, or build it on **Extism**, which provides plugin SDKs for many languages. Decide with a small spike of both.
+1. **Plugin ABI: leaning home-made** (over WIT/Component Model). Shape: a few fixed exports (`alloc`, `free`, `call`) and one host import (`host_call`). Control messages are serialized (MessagePack or similar); column data is passed as raw little-endian arrays, with no per-row encoding. Still open: write it directly on `wasmtime`, or build it on **Extism**, which provides plugin SDKs for many languages. Decide with a small spike of both. The runtime sits behind a trait in `ace-host` ([ADR 0005](adr/0005-split-host-from-runtime.md)). Extism hides linear memory, so the Extism spike also checks that it fits the trait.
 2. ~~Graph ownership~~ **Resolved:** the engine only needs to support graphs. How they get built is a UI concern. By default, "Add RSI" wires the nodes automatically. A visual node editor for power users can come later as a plugin.
 3. **Text input and IME** inside canvas-only plugins: the host probably needs a text-field primitive so IME works.
 4. **Workspace/storage format:** a single file (SQLite?) or a folder of JSON plus Parquet.
