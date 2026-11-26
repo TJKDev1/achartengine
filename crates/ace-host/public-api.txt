@@ -1,0 +1,92 @@
+pub mod ace_host
+pub enum ace_host::PluginError
+pub ace_host::PluginError::Abi(alloc::string::String)
+pub ace_host::PluginError::DeadlineExceeded
+pub ace_host::PluginError::InvalidModule(alloc::string::String)
+pub ace_host::PluginError::NoSuchExport(alloc::string::String)
+pub ace_host::PluginError::OutOfBounds
+pub ace_host::PluginError::OutOfBounds::len: usize
+pub ace_host::PluginError::OutOfBounds::ptr: u32
+pub ace_host::PluginError::OutOfFuel
+pub ace_host::PluginError::Trap(alloc::string::String)
+impl core::clone::Clone for ace_host::PluginError
+pub fn ace_host::PluginError::clone(&self) -> Self
+impl core::cmp::Eq for ace_host::PluginError
+impl core::cmp::PartialEq for ace_host::PluginError
+pub fn ace_host::PluginError::eq(&self, &Self) -> bool
+impl core::error::Error for ace_host::PluginError
+impl core::fmt::Debug for ace_host::PluginError
+pub fn ace_host::PluginError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for ace_host::PluginError
+pub fn ace_host::PluginError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ace_host::PluginError
+impl core::marker::Forget for ace_host::PluginError
+impl core::marker::Freeze for ace_host::PluginError
+impl core::marker::Move for ace_host::PluginError
+impl core::marker::Send for ace_host::PluginError
+impl core::marker::Sync for ace_host::PluginError
+impl core::marker::Unpin for ace_host::PluginError
+impl core::marker::UnsafeUnpin for ace_host::PluginError
+impl core::panic::unwind_safe::RefUnwindSafe for ace_host::PluginError
+impl core::panic::unwind_safe::UnwindSafe for ace_host::PluginError
+pub struct ace_host::Limits
+pub ace_host::Limits::deadline_ticks: core::option::Option<u64>
+pub ace_host::Limits::fuel: u64
+pub ace_host::Limits::memory_bytes: usize
+impl core::clone::Clone for ace_host::Limits
+pub fn ace_host::Limits::clone(&self) -> Self
+impl core::cmp::Eq for ace_host::Limits
+impl core::cmp::PartialEq for ace_host::Limits
+pub fn ace_host::Limits::eq(&self, &Self) -> bool
+impl core::fmt::Debug for ace_host::Limits
+pub fn ace_host::Limits::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ace_host::Limits
+impl core::marker::StructuralPartialEq for ace_host::Limits
+impl core::marker::Forget for ace_host::Limits
+impl core::marker::Freeze for ace_host::Limits
+impl core::marker::Move for ace_host::Limits
+impl core::marker::Send for ace_host::Limits
+impl core::marker::Sync for ace_host::Limits
+impl core::marker::Unpin for ace_host::Limits
+impl core::marker::UnsafeUnpin for ace_host::Limits
+impl core::panic::unwind_safe::RefUnwindSafe for ace_host::Limits
+impl core::panic::unwind_safe::UnwindSafe for ace_host::Limits
+pub struct ace_host::Region
+pub ace_host::Region::len: u32
+pub ace_host::Region::ptr: u32
+impl ace_host::Region
+pub fn ace_host::Region::pack(self) -> u64
+pub fn ace_host::Region::unpack(u64) -> Self
+impl core::clone::Clone for ace_host::Region
+pub fn ace_host::Region::clone(&self) -> Self
+impl core::cmp::Eq for ace_host::Region
+impl core::cmp::PartialEq for ace_host::Region
+pub fn ace_host::Region::eq(&self, &Self) -> bool
+impl core::fmt::Debug for ace_host::Region
+pub fn ace_host::Region::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ace_host::Region
+impl core::marker::StructuralPartialEq for ace_host::Region
+impl core::marker::Forget for ace_host::Region
+impl core::marker::Freeze for ace_host::Region
+impl core::marker::Move for ace_host::Region
+impl core::marker::Send for ace_host::Region
+impl core::marker::Sync for ace_host::Region
+impl core::marker::Unpin for ace_host::Region
+impl core::marker::UnsafeUnpin for ace_host::Region
+impl core::panic::unwind_safe::RefUnwindSafe for ace_host::Region
+impl core::panic::unwind_safe::UnwindSafe for ace_host::Region
+pub trait ace_host::HostCall
+pub fn ace_host::HostCall::host_call(&mut self, &mut dyn ace_host::Plugin, u32, u32) -> core::result::Result<u64, ace_host::PluginError>
+pub trait ace_host::Plugin
+pub fn ace_host::Plugin::call(&mut self, &str, &[u64]) -> core::result::Result<alloc::vec::Vec<u64>, ace_host::PluginError>
+pub fn ace_host::Plugin::fuel(&self) -> core::result::Result<u64, ace_host::PluginError>
+pub fn ace_host::Plugin::read(&mut self, u32, &mut [u8]) -> core::result::Result<(), ace_host::PluginError>
+pub fn ace_host::Plugin::set_fuel(&mut self, u64) -> core::result::Result<(), ace_host::PluginError>
+pub fn ace_host::Plugin::write(&mut self, u32, &[u8]) -> core::result::Result<(), ace_host::PluginError>
+pub trait ace_host::Runtime
+pub type ace_host::Runtime::Module
+pub type ace_host::Runtime::Plugin<H: ace_host::HostCall + 'static>: ace_host::Plugin
+pub fn ace_host::Runtime::instantiate<H: ace_host::HostCall + 'static>(&self, &Self::Module, ace_host::Limits, H) -> core::result::Result<Self::Plugin, ace_host::PluginError>
+pub fn ace_host::Runtime::load(&self, &[u8]) -> core::result::Result<Self::Module, ace_host::PluginError>
+pub fn ace_host::copy_in(&mut dyn ace_host::Plugin, &[u8]) -> core::result::Result<ace_host::Region, ace_host::PluginError>
+pub fn ace_host::copy_out(&mut dyn ace_host::Plugin, ace_host::Region) -> core::result::Result<alloc::vec::Vec<u8>, ace_host::PluginError>

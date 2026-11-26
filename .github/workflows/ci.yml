@@ -81,11 +81,12 @@ jobs:
       - uses: taiki-e/install-action@893d6ee8d714b6c7dfe2bcd94e5759e9a7958a7e # v2.90.10
         with:
           tool: wasmtime
-      - run: cargo check -p ace-core --target wasm32-unknown-unknown --locked
-      # wasm32v1-none ships no `std`, so this fails if ace-core or a dependency pulls it in (ADR 0002).
-      - run: cargo check -p ace-core --target wasm32v1-none --locked
-      # Run the core's tests as WASM too (wasmtime is the runner, see .cargo/config.toml).
-      - run: cargo test -p ace-core --target wasm32-wasip1 --locked
+      # The plugin host must build for wasm32 too, without its native runtime (ADR 0005).
+      - run: cargo check -p ace-core -p ace-host --target wasm32-unknown-unknown --locked
+      # wasm32v1-none ships no `std`, so this fails if a crate or a dependency pulls it in (ADR 0002).
+      - run: cargo check -p ace-core -p ace-host --target wasm32v1-none --locked
+      # Run their tests as WASM too (wasmtime is the runner, see .cargo/config.toml).
+      - run: cargo test -p ace-core -p ace-host --target wasm32-wasip1 --locked
 
   docs:
     runs-on: ubuntu-latest
