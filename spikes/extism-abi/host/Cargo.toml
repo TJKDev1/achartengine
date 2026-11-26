@@ -1,0 +1,12 @@
+[package]
+name = "spike-host"
+description = "Spike host: loads plugin-sma in Extism and measures it"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+spike-abi = { path = "../abi" }
+# Without default features: no HTTP client and no wasmtime defaults. Plugins don't need them here.
+extism = { version = "1.41", default-features = false }

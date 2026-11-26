@@ -1,0 +1,11 @@
+[package]
+name = "spike-abi"
+description = "Messages shared by the spike host and plugin"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+rmp-serde = "1.3"
