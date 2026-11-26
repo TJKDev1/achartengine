@@ -1,0 +1,13 @@
+[package]
+name = "plugin-sma"
+description = "Spike plugin: SMA over a raw f64 column"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+spike-abi = { path = "../abi" }

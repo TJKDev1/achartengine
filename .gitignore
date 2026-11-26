@@ -7,3 +7,4 @@
 .idea/
 .vscode/
 /mutants.out*
+/spikes/*/target
