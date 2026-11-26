@@ -1,6 +1,6 @@
 # 0001: Plugin ABI
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-25
 - Issue: #7 (spikes: #5 wasmtime, #6 Extism)
 
@@ -26,13 +26,33 @@ Plugins should be writable in several languages over time, but v0 may ship a Rus
 
 ## Decision
 
-We lean towards a **home-made ABI** (option 2 or 3). We'll choose between plain `wasmtime` and
-Extism after a small spike of each that:
+Option 2: a home-made ABI directly on `wasmtime`. We first leaned towards a home-made ABI
+(option 2 or 3) and spiked both. Each spike implemented a `Recompute` SMA plugin over 1M rows,
+called one host service under a permission check, measured call overhead and column-transfer
+cost, and checked fuel and memory limits and whether `ace-host` builds for `wasm32`. The results
+are below.
 
-- implements a `Recompute` SMA plugin over 1M rows,
-- calls one host service under a permission check,
-- measures call overhead and column-transfer cost,
-- checks fuel/memory limits and that `ace-host` still builds for `wasm32`.
+Extism copies every column through its own kernel module, which costs more than the SMA the
+column feeds, and its API can't implement the `Runtime` trait from
+[ADR 0005](0005-split-host-from-runtime.md). We give up its PDKs for other languages and write
+our own SDK, which hides the same pointer handling.
+
+The ABI:
+
+- A plugin exports `alloc`, `free` and `call`, and imports one function, `host_call`.
+- Columns are raw little-endian arrays in plugin memory. The host copies a column in once and
+  keeps it there across calls, sending only appended rows (DESIGN §6.3).
+- Control messages are MessagePack. `ace-host` is `no_std`, so it encodes them with the `rmp`
+  crate without its `std` feature and writes the encoding by hand, without `serde`. MessagePack
+  has implementations in most languages, so SDKs for other languages stay possible.
+- A `host_call` the host can answer from its own state, such as the logical clock or the seeded
+  RNG, returns the answer directly. One that needs platform I/O (network, storage, signing with
+  a secret) returns a request id at once, and the result arrives on a later `call` into the
+  plugin. The plugin never waits inside `host_call`, so a browser backend needs neither JSPI,
+  Asyncify nor `Atomics.wait`. The SDK hides the request ids.
+- Fuel limits every plugin. In live use an epoch deadline also applies, as a wall-clock limit for
+  a plugin given a large fuel budget. Replays and backtests run with fuel only, so they stop a
+  plugin at the same point every time (ADR 0005, DESIGN §7).
 
 ## Spike results
 
@@ -78,19 +98,15 @@ fails `wasm32`, because Extism runs on wasmtime. The differences:
 
 ## Consequences
 
-The decision (#7) is still open. The spikes point to option 2, because Extism's copies through
-its kernel cost more than the SMA they feed and its API can't implement ADR 0005's trait. Its
-PDKs for other languages are the main thing option 2 gives up. These points hold whichever
-runtime #7 picks.
+Plugin authors get one SDK, in Rust, until we write others. Their I/O is asynchronous from the
+first version, which makes simple plugins a little harder to write but means a browser backend
+won't break them. The SDK has to make the request ids invisible to a plugin that just wants to
+fetch something.
 
-Columns stay resident. Copying a column costs as much as a simple indicator, so the host copies
-each column into a plugin once, keeps it there across calls and sends only appended rows
-(DESIGN §6.3).
+Epochs cost the same as fuel on a tight numeric loop, so the live deadline is close to free. A
+plugin that hits it in live use is stopped and reported. Because it depends on wall-clock time,
+it can't be replayed, which is why replays leave it off.
 
-Speed doesn't decide between fuel and epochs, because on a tight numeric loop they cost the same.
-Fuel is deterministic (D8), and ADR 0005 already requires it for replays. But neither one bounds
-the time a plugin spends waiting in `host_call`, so #7 still decides whether live use needs a
-wall-clock limit as well.
-
-`host_call` I/O becomes request and reply before any browser backend, because browser I/O is
-async (ADR 0005). Changing this after plugins ship would break them, so #7 decides it.
+Hand-written MessagePack is more code than `rmp-serde`, but it keeps `ace-host` `no_std` and
+leaves the wire format under our control. `ace-host` must fuzz the decoder (#33), since it reads
+bytes a plugin wrote.

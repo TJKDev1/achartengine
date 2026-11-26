@@ -76,10 +76,10 @@ Charts, plugin canvases and the widget library all emit these. Every frontend im
 - Accessibility: the library emits a semantic tree beside the draw list so frontends can expose it to screen readers.
 
 ### 4.4 Plugin host (`ace-host`)
-- Implements the plugin ABI (§12.1), validates modules and enforces permissions.
+- Implements the plugin ABI ([ADR 0001](adr/0001-plugin-abi.md)), validates modules and enforces permissions.
 - Brokers I/O (network, storage, secrets) for plugins. The app or frontend implements the actual I/O.
 - Runs plugins through a runtime trait, so `ace-host` has no wasmtime dependency and builds for `wasm32` ([ADR 0005](adr/0005-split-host-from-runtime.md)).
-- A runtime backend implements the trait and applies fuel/time and memory limits. `ace-host-wasmtime` is the native one; a browser backend would use the browser's `WebAssembly` API.
+- A runtime backend implements the trait and applies fuel and memory limits, plus an epoch deadline in live use. `ace-host-wasmtime` is the native one; a browser backend would use the browser's `WebAssembly` API.
 
 ### 4.5 Frontend (`ace-frontend-wgpu`)
 - Renders draw lists and the widget semantic tree, forwards input, and manages windows.
@@ -97,7 +97,7 @@ Charts, plugin canvases and the widget library all emit these. Every frontend im
 ## 6. Plugin model
 
 ### 6.1 Roles
-A plugin exports one or more **roles**. Each role is a versioned message interface (see §12.1 for the ABI):
+A plugin exports one or more **roles**. Each role is a versioned message interface (see [ADR 0001](adr/0001-plugin-abi.md) for the ABI):
 
 | Role | Purpose | Example |
 |------|---------|---------|
@@ -261,7 +261,7 @@ app/                   reference app
 
 ## 12. Open questions
 
-1. **Plugin ABI: leaning home-made** (over WIT/Component Model). Shape: a few fixed exports (`alloc`, `free`, `call`) and one host import (`host_call`). Control messages are serialized (MessagePack or similar); column data is passed as raw little-endian arrays, with no per-row encoding. Still open: write it directly on `wasmtime`, or build it on **Extism**, which provides plugin SDKs for many languages. Both spikes are done and point to plain `wasmtime` ([ADR 0001](adr/0001-plugin-abi.md)): Extism copies every column through its kernel module, and it can't implement the runtime trait that [ADR 0005](adr/0005-split-host-from-runtime.md) puts outside `ace-host`. #7 decides.
+1. ~~Plugin ABI~~ **Resolved** ([ADR 0001](adr/0001-plugin-abi.md)): a home-made ABI directly on `wasmtime`. Plugins export `alloc`, `free` and `call` and import `host_call`. Columns are raw little-endian arrays that stay in plugin memory, and control messages are MessagePack. Host calls that need I/O return a request id, and their result arrives on a later call.
 2. ~~Graph ownership~~ **Resolved:** the engine only needs to support graphs. How they get built is a UI concern. By default, "Add RSI" wires the nodes automatically. A visual node editor for power users can come later as a plugin.
 3. **Text input and IME** inside canvas-only plugins: the host probably needs a text-field primitive so IME works.
 4. **Workspace/storage format:** a single file (SQLite?) or a folder of JSON plus Parquet.

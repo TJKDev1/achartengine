@@ -62,7 +62,7 @@ The Extism spike (#6) checks that.
   (which rewrites the module), or a worker blocking on `Atomics.wait` (which needs cross-origin
   isolation). Before a browser backend is possible, I/O host calls must become requests whose
   results arrive on a later call. The ABI decision (#7) should settle this, since changing it
-  later breaks plugins.
+  later breaks plugins. [ADR 0001](0001-plugin-abi.md) does: I/O host calls return a request id.
 - **Determinism (D8).** `ace-host` rejects modules that use threads or relaxed SIMD, so no backend
   has to support them. It canonicalizes NaN in decoded messages, in columns read back and in
   anything it hashes or journals, so backends can't disagree on NaN bits. Plugin code that
