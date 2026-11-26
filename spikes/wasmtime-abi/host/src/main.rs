@@ -8,10 +8,10 @@
 use std::collections::BTreeMap;
 use std::time::Instant;
 
-use wasmtime::error::{Context, Result, bail};
 use spike_abi::{
     ColumnRef, HostRequest, HostResponse, Request, Response, decode, encode, pack, unpack,
 };
+use wasmtime::error::{Context, Result, bail};
 use wasmtime::{
     Caller, Config, Engine, Instance, Linker, Memory, Module, Store, StoreLimits,
     StoreLimitsBuilder, Trap, TypedFunc,
@@ -52,7 +52,7 @@ fn main() -> Result<()> {
 
     let linker = linker(&engine)?;
     let started = Instant::now();
-    let mut plugin = Plugin::new(&engine, &linker, &module, vec!["storage"])?;
+    let mut plugin = Plugin::new(&engine, &linker, &module, vec!["storage"], Some(FUEL))?;
     report("instantiate", started.elapsed());
 
     measure_call_overhead(&mut plugin)?;
@@ -87,6 +87,10 @@ fn host_call(mut caller: Caller<'_, State>, ptr: u32, len: u32) -> Result<u64> {
         .context("plugin has no `alloc`")?
         .typed::<u32, u32>(&caller)?;
     let reply_ptr = alloc.call(&mut caller, reply_len)?;
+    if reply_ptr == 0 {
+        // Trapping is the only way to answer a plugin that has no room left for the answer.
+        bail!("plugin is out of memory for the host's reply");
+    }
     write(memory.data_mut(&mut caller), reply_ptr, &reply)?;
     Ok(pack(reply_ptr, reply_len))
 }
@@ -111,6 +115,7 @@ impl Plugin {
         linker: &Linker<State>,
         module: &Module,
         permissions: Vec<&'static str>,
+        fuel: Option<u64>,
     ) -> Result<Self> {
         let state = State {
             limits: StoreLimitsBuilder::new().memory_size(MEMORY_LIMIT).build(),
@@ -119,8 +124,9 @@ impl Plugin {
         };
         let mut store = Store::new(engine, state);
         store.limiter(|state| &mut state.limits);
-        // Fails only on an engine without fuel metering, where there's nothing to set.
-        store.set_fuel(FUEL).ok();
+        if let Some(fuel) = fuel {
+            store.set_fuel(fuel)?;
+        }
         let instance: Instance = linker.instantiate(&mut store, module)?;
         Ok(Self {
             memory: instance
@@ -137,20 +143,26 @@ impl Plugin {
         let bytes = encode(request);
         let len = u32::try_from(bytes.len())?;
         let ptr = self.alloc.call(&mut self.store, len)?;
+        if ptr == 0 {
+            bail!("plugin is out of memory for the request");
+        }
         write(self.memory.data_mut(&mut self.store), ptr, &bytes)?;
-        let packed = self.call.call(&mut self.store, (ptr, len));
+        // After a trap the instance is unusable, so return the trap itself rather than an
+        // error from the `free` below.
+        let (reply_ptr, reply_len) = unpack(self.call.call(&mut self.store, (ptr, len))?);
         self.free.call(&mut self.store, (ptr, len))?;
 
-        let (reply_ptr, reply_len) = unpack(packed?);
-        let response = decode(read(self.memory.data(&self.store), reply_ptr, reply_len)?)?;
+        let response = read(self.memory.data(&self.store), reply_ptr, reply_len)
+            .and_then(|reply| decode::<Response>(reply).context("bad response"));
+        // Free the reply even when it doesn't decode.
         self.free.call(&mut self.store, (reply_ptr, reply_len))?;
-        Ok(response)
+        response
     }
 
     /// Copies `values` into plugin memory as little-endian `f64`s.
     fn write_column(&mut self, values: &[f64]) -> Result<ColumnRef> {
         let len = u32::try_from(values.len())?;
-        let ptr = self.alloc.call(&mut self.store, len * 8)?;
+        let ptr = self.alloc.call(&mut self.store, column_bytes(len)?)?;
         if ptr == 0 {
             bail!("plugin is out of memory");
         }
@@ -168,10 +180,18 @@ impl Plugin {
 
     /// Copies a column out of plugin memory and frees it.
     fn take_column(&mut self, column: ColumnRef) -> Result<Vec<f64>> {
-        let bytes = read(self.memory.data(&self.store), column.ptr, column.len * 8)?;
+        let bytes = read(
+            self.memory.data(&self.store),
+            column.ptr,
+            column_bytes(column.len)?,
+        )?;
         let values = bytes
             .chunks_exact(8)
-            .map(|chunk| f64::from_le_bytes(chunk.try_into().unwrap_or_default()))
+            .map(|chunk| {
+                let mut value = [0; 8];
+                value.copy_from_slice(chunk);
+                f64::from_le_bytes(value)
+            })
             .collect();
         self.free_column(column)?;
         Ok(values)
@@ -180,7 +200,7 @@ impl Plugin {
     fn free_column(&mut self, column: ColumnRef) -> Result<()> {
         Ok(self
             .free
-            .call(&mut self.store, (column.ptr, column.len * 8))?)
+            .call(&mut self.store, (column.ptr, column_bytes(column.len)?))?)
     }
 
     fn fuel_used(&self) -> Result<u64> {
@@ -249,7 +269,7 @@ fn check_permission_denied(
     module: &Module,
     input: &[f64],
 ) -> Result<()> {
-    let mut plugin = Plugin::new(engine, linker, module, vec![])?;
+    let mut plugin = Plugin::new(engine, linker, module, vec![], Some(FUEL))?;
     let column = plugin.write_column(input)?;
     let response = plugin.request(&Request::Sma {
         period: PERIOD,
@@ -261,7 +281,7 @@ fn check_permission_denied(
 }
 
 fn check_fuel_limit(engine: &Engine, linker: &Linker<State>, module: &Module) -> Result<()> {
-    let mut plugin = Plugin::new(engine, linker, module, vec![])?;
+    let mut plugin = Plugin::new(engine, linker, module, vec![], Some(FUEL))?;
     plugin.store.set_fuel(10_000_000)?;
     let started = Instant::now();
     let error = match plugin.request(&Request::Spin) {
@@ -298,7 +318,7 @@ fn check_memory_limit(plugin: &mut Plugin) -> Result<()> {
 fn measure_without_fuel(wasm: &[u8], input: &[f64]) -> Result<()> {
     let engine = Engine::new(&Config::new())?;
     let module = Module::new(&engine, wasm)?;
-    let mut plugin = Plugin::new(&engine, &linker(&engine)?, &module, vec!["storage"])?;
+    let mut plugin = Plugin::new(&engine, &linker(&engine)?, &module, vec!["storage"], None)?;
     let column = plugin.write_column(input)?;
     let started = Instant::now();
     let response = plugin.request(&Request::Sma {
@@ -345,6 +365,12 @@ fn random_walk(rows: usize) -> Vec<f64> {
             price
         })
         .collect()
+}
+
+/// Size in bytes of a column of `len` `f64`s.
+fn column_bytes(len: u32) -> Result<u32> {
+    len.checked_mul(8)
+        .context("column too large for 32-bit memory")
 }
 
 fn export_memory(caller: &mut Caller<'_, State>) -> Result<Memory> {

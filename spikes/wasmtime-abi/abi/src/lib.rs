@@ -77,11 +77,15 @@ pub fn unpack(packed: u64) -> (u32, u32) {
     ((packed >> 32) as u32, packed as u32)
 }
 
-/// Encodes a message as MessagePack. The types above can't fail to encode, so this returns
-/// the bytes directly.
+/// Encodes a message as MessagePack.
+///
+/// # Panics
+///
+/// If encoding fails, which the types above can't: they hold only strings, integers and bytes.
+/// Spike code; the real ABI would return the error.
 #[must_use]
 pub fn encode<T: Serialize>(message: &T) -> Vec<u8> {
-    rmp_serde::to_vec(message).unwrap_or_default()
+    rmp_serde::to_vec(message).expect("message types always encode")
 }
 
 /// Decodes a MessagePack message.

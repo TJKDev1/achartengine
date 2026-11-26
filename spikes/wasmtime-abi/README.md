@@ -12,12 +12,12 @@ cargo run --release -p spike-host
 
 ## Results
 
-Windows 11, x86-64, Rust 1.97.1, wasmtime 51 with cranelift, release builds. The run is repeatable
-to within about 5%.
+Windows 11, x86-64, Rust 1.97.1, wasmtime 51 with cranelift, release builds, on a quiet machine.
+Under load every row got up to twice as slow, but the ratios between rows held.
 
 | Measurement | Result |
 |-------------|--------|
-| Plugin `.wasm` size | 166 KiB, mostly `rmp-serde` and `format!` |
+| Plugin `.wasm` size | 172 KiB, mostly `rmp-serde` and `format!` |
 | Compile the module | 112 ms (once per plugin; can be cached) |
 | Instantiate | 57 µs |
 | `Noop` round trip (encode, `alloc`, `call`, two `free`s, decode) | 180 ns |
@@ -46,7 +46,7 @@ about as long as the SMA itself. Most indicators read the same input columns, so
 copy each column into a plugin once and keep it there across calls, and send only appended rows
 afterwards (DESIGN §6.3). Per-call overhead (180 ns) doesn't matter at this size.
 
-Fuel metering costs about 70% on a tight numeric loop. Fuel is deterministic, which D8 wants for
+Fuel metering costs 50–100% on a tight numeric loop. Fuel is deterministic, which D8 wants for
 replay, but epoch interruption is far cheaper and is enough to stop a hung plugin. One option is
 epochs for live use and fuel only where the instruction count has to be reproducible; decide in #7.
 

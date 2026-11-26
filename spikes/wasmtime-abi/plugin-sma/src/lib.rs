@@ -66,7 +66,10 @@ fn sma(period: u32, input: ColumnRef) -> Response {
     }
     // SAFETY: the host allocated the column with `alloc` and filled `len` values.
     let values = unsafe { std::slice::from_raw_parts(input.ptr as *const f64, input.len as usize) };
-    let out_ptr = alloc(input.len * 8);
+    let Some(out_bytes) = input.len.checked_mul(8) else {
+        return Response::Error("column too large".into());
+    };
+    let out_ptr = alloc(out_bytes);
     if out_ptr == 0 {
         return Response::Error("out of memory".into());
     }
@@ -85,10 +88,14 @@ fn sma(period: u32, input: ColumnRef) -> Response {
         }),
         Ok(HostResponse::Denied { permission }) => {
             // SAFETY: `out_ptr` came from `alloc` with this size.
-            unsafe { free(out_ptr, input.len * 8) };
+            unsafe { free(out_ptr, out_bytes) };
             Response::Error(format!("host denied `{permission}`"))
         }
-        Err(error) => Response::Error(error),
+        Err(error) => {
+            // SAFETY: as above.
+            unsafe { free(out_ptr, out_bytes) };
+            Response::Error(error)
+        }
     }
 }
 
@@ -138,6 +145,10 @@ fn call_host(request: &HostRequest) -> Result<HostResponse, String> {
 fn to_buffer(bytes: &[u8]) -> u64 {
     let len = bytes.len() as u32;
     let ptr = alloc(len);
+    if ptr == 0 {
+        // There is no buffer to report the failure in, so trap and let the host see it.
+        core::arch::wasm32::unreachable();
+    }
     // SAFETY: `alloc` returned `len` writable bytes.
     unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), ptr as *mut u8, bytes.len()) };
     pack(ptr, len)
