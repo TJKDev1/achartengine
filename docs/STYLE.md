@@ -28,8 +28,16 @@ arguments and nesting depth (see `clippy.toml`).
 **Order a file for the reader:** public items first, the most important at the top, helpers
 below their callers, tests at the bottom.
 
-**Copy the exemplars.** People and models copy nearby code, so new code should follow a few
-chosen modules. They'll be listed here once picked (#38).
+**Copy the exemplars.** People and models copy nearby code, so new code should follow these
+modules. Replace one when something reads better.
+
+- [`ace-core/src/dataset.rs`](../crates/ace-core/src/dataset.rs): a constructor that checks its
+  invariants once so readers can rely on them, an error enum with one variant per failure and a
+  `Display` message for each, small helpers below their caller, and table-driven tests that
+  name the case in every assert message.
+- [`ace-core/src/column.rs`](../crates/ace-core/src/column.rs): plain data types with public
+  fields where nothing needs protecting, a private field with its invariant written next to it
+  where something does, and a doc comment that gives the number behind a design choice.
 
 ## Comments
 
