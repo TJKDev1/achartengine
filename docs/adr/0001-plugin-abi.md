@@ -32,7 +32,8 @@ Extism after a small spike of each that:
 - implements a `Recompute` SMA plugin over 1M rows,
 - calls one host service under a permission check,
 - measures call overhead and column-transfer cost,
-- checks fuel/memory limits and that `ace-host` still builds for `wasm32`.
+- checks fuel/memory limits and that `ace-host` still builds for `wasm32`. The wasmtime spike
+  failed this; ADR 0005 moves the runtime out of `ace-host` instead.
 
 ## Consequences
 
