@@ -1,6 +1,6 @@
 # 0003: Pull requests for larger changes
 
-- Status: accepted; ADR 0004 adds a readability review
+- Status: accepted
 - Date: 2026-11-25
 - Issue: #27
 
@@ -24,7 +24,8 @@ catches. Small fixes, though, shouldn't pay for a PR round trip.
 Option 3. A change is "larger" if it adds a crate or dependency, changes the plugin ABI, a
 public API or the architecture, or touches more than about 300 lines (lockfiles and snapshots
 excluded). Such a PR needs green CI and one review by `/code-review` or a model that didn't
-write the change, and is squash-merged with a Conventional Commit title.
+write the change, and is squash-merged with a Conventional Commit title. ADR 0004 adds a second,
+readability review.
 
 We don't turn on branch protection: required checks would block the direct pushes that small
 changes still use. The rule is enforced by convention (CONTRIBUTING.md, CLAUDE.md).

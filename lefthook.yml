@@ -9,6 +9,8 @@ pre-commit:
       run: cargo fmt --all -- --check
     - name: prose
       glob: "*.{md,rs}"
+      # Scans the whole repo, not just staged files. It takes about a second, and CI keeps
+      # main clean, so any hit is in something you changed.
       run: bash scripts/check-prose.sh
 
 commit-msg:

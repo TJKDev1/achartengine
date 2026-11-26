@@ -31,8 +31,7 @@ their own habits. If you wrote it, start a fresh agent and give it only this fil
 ## Report
 
 List findings, most important first. For each give the location (`path:line`), what makes it
-hard to read, and a concrete rewrite. A finding without a rewrite isn't actionable, so leave it
-out.
+hard to read, and a concrete rewrite.
 
 Report only what a reader would notice. Skip anything clippy, rustfmt or
-`scripts/check-prose.sh` already catches. If the change reads well, say so in one line and stop.
+`scripts/check-prose.sh` already catches. If the change reads well, say so in one line.

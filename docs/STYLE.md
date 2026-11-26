@@ -66,10 +66,8 @@ edge cases, errors, and an example if the use isn't obvious.
 
 ## Prose
 
-This covers docs, comments and commit messages.
-
-**Use paragraphs for reasoning.** Lists are for steps, options and checklists. When ideas depend
-on each other ("because", "so", "unless"), a paragraph keeps those links and a list drops them.
+**Use paragraphs for reasoning.** Lists are for steps and checklists. When ideas depend on each
+other ("because", "so"), a paragraph keeps those links and a list drops them.
 Don't add a heading for three sentences.
 
 **State things once.** Each point goes in one place, without hedging. If something is uncertain,
@@ -94,8 +92,6 @@ Writers rarely notice these in their own text, so look for them when you reread.
 
 ### Words to avoid
 
-`scripts/check-prose.sh` flags these in docs, comments and commit messages:
-
 - Sales talk: robust, seamless(ly), powerful, cutting-edge, state-of-the-art, best-in-class,
   world-class, blazing(ly) fast, game-changer, elegant, empower, holistic, synergy
 - Inflated verbs: leverage, utilize, facilitate, streamline, delve
@@ -106,10 +102,9 @@ Writers rarely notice these in their own text, so look for them when you reread.
 If a flagged word is correct (an `elegant` theme), add `prose:allow` to the line, as
 `<!-- prose:allow -->` in Markdown.
 
-## How this is checked
+## Reviews
 
-The clippy limits and `scripts/check-prose.sh` run in CI and the git hooks. Every PR also gets a
-readability review against this file by a model that didn't write the change
-(`.claude/skills/readability-review`, ADR 0004). At each milestone a person reads one module and
-one doc page in full and files an issue if either was unpleasant to read, because the patterns
-above get past both the tools and a model checking its own text.
+Every PR also gets a readability review against this file by a model that didn't write the
+change (`.claude/skills/readability-review`, ADR 0004). At each milestone a person reads one
+module and one doc page in full and files an issue if either was unpleasant to read, because the
+patterns above get past both the tools and a model checking its own text.
