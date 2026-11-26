@@ -43,8 +43,8 @@ The **engine** and the **tool** built on it are strictly separated, and everythi
 ├──────────────────────────────────────────────────────────────────────┤
 │ Frontend adapter: wgpu + winit — rasterizes draw lists, sends input  │
 ├──────────────────────────────────────────────────────────────────────┤
-│ Plugin host: loads WASM, enforces permissions + resource limits,     │
-│ brokers I/O, secrets, storage                                        │
+│ Plugin host: ABI, permissions, I/O broker, secrets, storage;         │
+│ runs WASM through a runtime backend (wasmtime on native)             │
 ├──────────────────────────────────────────────────────────────────────┤
 │ Engine core: data model · dataflow graph · scheduler · logical clock │
 │ · layout · scales · draw-list generation · hit-testing · state/undo  │
@@ -149,7 +149,7 @@ The SDK's `Recompute` adapter turns all four into "here is the full input, give 
 - The engine owns a **logical clock**. Plugins never read wall-clock time; they get the time from the engine.
 - Randomness only comes from a **seeded host RNG**.
 - Node execution order is deterministic (stable topological order), and there is no plugin-visible concurrency.
-- Non-determinism only enters at **`source` and `broker` boundaries**. Their outputs are **journaled** (recorded), so any live session can be replayed exactly. Bar replay and backtests use the same mechanism.
+- Non-determinism only enters at **`source` and `broker` boundaries**. Their outputs are **journaled** (recorded), so any live session can be replayed exactly. Replays and backtests limit plugins by fuel only, and the journal records the runtime backend ([ADR 0005](adr/0005-split-host-from-runtime.md)). Bar replay and backtests use the same mechanism.
 - Floating point: avoid fast-math. WASM float semantics are deterministic apart from NaN bit patterns, which we canonicalize.
 
 ## 8. Permissions (D9)
@@ -164,7 +164,7 @@ Plugins declare these in their manifest. The user approves them at install time,
 - `notify`: OS notifications and sounds.
 - `clipboard`, `files: pick` (a file chosen by the user through a dialog).
 
-Every plugin also gets fuel/time limits per call and memory caps, so a broken plugin can't freeze the app. The runtime backend enforces them, and the exact stop point differs between backends (ADR 0005).
+Every plugin also gets fuel/time limits per call and memory caps, so a broken plugin can't freeze the app. The runtime backend enforces them. Fuel counts, and so the point where a plugin is stopped, differ between backends ([ADR 0005](adr/0005-split-host-from-runtime.md)).
 
 ## 9. Capability catalogue
 
@@ -261,7 +261,7 @@ app/                   reference app
 
 ## 12. Open questions
 
-1. **Plugin ABI: leaning home-made** (over WIT/Component Model). Shape: a few fixed exports (`alloc`, `free`, `call`) and one host import (`host_call`). Control messages are serialized (MessagePack or similar); column data is passed as raw little-endian arrays, with no per-row encoding. Still open: write it directly on `wasmtime`, or build it on **Extism**, which provides plugin SDKs for many languages. Decide with a small spike of both. Either way the runtime sits behind a trait in `ace-host` ([ADR 0005](adr/0005-split-host-from-runtime.md)); the Extism spike checks whether Extism fits that trait.
+1. **Plugin ABI: leaning home-made** (over WIT/Component Model). Shape: a few fixed exports (`alloc`, `free`, `call`) and one host import (`host_call`). Control messages are serialized (MessagePack or similar); column data is passed as raw little-endian arrays, with no per-row encoding. Still open: write it directly on `wasmtime`, or build it on **Extism**, which provides plugin SDKs for many languages. Decide with a small spike of both. The runtime sits behind a trait in `ace-host` ([ADR 0005](adr/0005-split-host-from-runtime.md)). Extism hides linear memory, so the Extism spike also checks that it fits the trait.
 2. ~~Graph ownership~~ **Resolved:** the engine only needs to support graphs. How they get built is a UI concern. By default, "Add RSI" wires the nodes automatically. A visual node editor for power users can come later as a plugin.
 3. **Text input and IME** inside canvas-only plugins: the host probably needs a text-field primitive so IME works.
 4. **Workspace/storage format:** a single file (SQLite?) or a folder of JSON plus Parquet.
