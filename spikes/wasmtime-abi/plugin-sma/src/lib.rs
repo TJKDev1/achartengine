@@ -45,13 +45,13 @@ pub unsafe extern "C" fn call(ptr: u32, len: u32) -> u64 {
     // SAFETY: the host wrote `len` bytes at `ptr`.
     let bytes = unsafe { std::slice::from_raw_parts(ptr as *const u8, len as usize) };
     let response = match decode::<Request>(bytes) {
-        Ok(request) => handle(request),
+        Ok(request) => dispatch(request),
         Err(error) => Response::Error(format!("bad request: {error}")),
     };
-    to_buffer(&encode(&response))
+    into_plugin_buffer(&encode(&response))
 }
 
-fn handle(request: Request) -> Response {
+fn dispatch(request: Request) -> Response {
     match request {
         Request::Noop => Response::Done,
         Request::Sma { period, input } => sma(period, input),
@@ -64,8 +64,6 @@ fn sma(period: u32, input: ColumnRef) -> Response {
     if period == 0 {
         return Response::Error("period must be at least 1".into());
     }
-    // SAFETY: the host allocated the column with `alloc` and filled `len` values.
-    let values = unsafe { std::slice::from_raw_parts(input.ptr as *const f64, input.len as usize) };
     let Some(out_bytes) = input.len.checked_mul(8) else {
         return Response::Error("column too large".into());
     };
@@ -73,28 +71,25 @@ fn sma(period: u32, input: ColumnRef) -> Response {
     if out_ptr == 0 {
         return Response::Error("out of memory".into());
     }
-    // SAFETY: `alloc` returned room for `len` aligned values.
-    let out = unsafe { std::slice::from_raw_parts_mut(out_ptr as *mut f64, input.len as usize) };
+    // SAFETY: the host allocated the input with `alloc` and filled `len` values, and `alloc`
+    // just returned room for `len` aligned output values.
+    let (values, out) = unsafe {
+        (
+            std::slice::from_raw_parts(input.ptr as *const f64, input.len as usize),
+            std::slice::from_raw_parts_mut(out_ptr as *mut f64, input.len as usize),
+        )
+    };
     rolling_mean(values, period as usize, out);
 
-    let stored = HostRequest::StorageSet {
-        key: "sma/rows".into(),
-        value: input.len.to_le_bytes().to_vec(),
-    };
-    match call_host(&stored) {
-        Ok(HostResponse::Done) => Response::Column(ColumnRef {
+    match store_row_count(input.len) {
+        Ok(()) => Response::Column(ColumnRef {
             ptr: out_ptr,
             len: input.len,
         }),
-        Ok(HostResponse::Denied { permission }) => {
+        Err(message) => {
             // SAFETY: `out_ptr` came from `alloc` with this size.
             unsafe { free(out_ptr, out_bytes) };
-            Response::Error(format!("host denied `{permission}`"))
-        }
-        Err(error) => {
-            // SAFETY: as above.
-            unsafe { free(out_ptr, out_bytes) };
-            Response::Error(error)
+            Response::Error(message)
         }
     }
 }
@@ -130,7 +125,21 @@ fn hog(bytes: u32) -> Response {
     }
 }
 
-fn call_host(request: &HostRequest) -> Result<HostResponse, String> {
+/// Stores the row count in host storage, which needs the `storage` permission.
+fn store_row_count(rows: u32) -> Result<(), String> {
+    let request = HostRequest::StorageSet {
+        key: "sma/rows".into(),
+        value: rows.to_le_bytes().to_vec(),
+    };
+    match ask_host(&request)? {
+        HostResponse::Done => Ok(()),
+        // The host checks for this exact text in `check_permission_denied`.
+        HostResponse::Denied { permission } => Err(format!("host denied `{permission}`")),
+    }
+}
+
+/// Sends `request` through the `host_call` import and decodes the reply.
+fn ask_host(request: &HostRequest) -> Result<HostResponse, String> {
     let bytes = encode(request);
     // SAFETY: `host_call` only reads `bytes` and returns a buffer it allocated through `alloc`.
     let (ptr, len) = unpack(unsafe { host_call(bytes.as_ptr() as u32, bytes.len() as u32) });
@@ -142,7 +151,9 @@ fn call_host(request: &HostRequest) -> Result<HostResponse, String> {
     response
 }
 
-fn to_buffer(bytes: &[u8]) -> u64 {
+/// Copies `bytes` into a new buffer and packs it for returning from `call`. The host frees it.
+/// Traps if memory is exhausted.
+fn into_plugin_buffer(bytes: &[u8]) -> u64 {
     let len = bytes.len() as u32;
     let ptr = alloc(len);
     if ptr == 0 {

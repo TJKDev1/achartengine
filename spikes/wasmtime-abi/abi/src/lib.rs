@@ -7,8 +7,8 @@
 //!   read in place.
 //! - `call(ptr, len) -> packed`: the host writes a MessagePack [`Request`] and gets back a
 //!   [`Response`] buffer, which the plugin allocated and the host frees.
-//! - `host_call(ptr, len) -> packed`: the same, the other way round, with [`HostRequest`] and
-//!   [`HostResponse`]. The host allocates the response in plugin memory through `alloc`.
+//! - `host_call(ptr, len) -> packed`: the plugin sends a [`HostRequest`] and gets back a
+//!   [`HostResponse`], which the host allocates in plugin memory through `alloc`.
 //!
 //! `packed` is `ptr << 32 | len`. Control messages are MessagePack; column data never is. A
 //! column travels as a [`ColumnRef`] pointing at raw little-endian values.
@@ -22,6 +22,7 @@ pub const ALIGN: usize = 8;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ColumnRef {
     pub ptr: u32,
+    /// Counts values, not bytes.
     pub len: u32,
 }
 
@@ -30,8 +31,8 @@ pub struct ColumnRef {
 pub enum Request {
     /// Does nothing, to measure the cost of a call.
     Noop,
-    /// Simple moving average of `input`, the way the SDK's `Recompute` adapter would call it.
-    /// After computing, the plugin stores the row count through the host's storage service.
+    /// Simple moving average of `input`. The plugin also stores the row count through
+    /// `host_call`, which exercises the permission check.
     Sma { period: u32, input: ColumnRef },
     /// Loops forever, to test fuel limits.
     Spin,
@@ -42,9 +43,11 @@ pub enum Request {
 /// The plugin's answer.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum Response {
+    /// The request succeeded and has nothing to return.
     Done,
     /// The output column; the host frees it with `free(ptr, len * 8)`.
     Column(ColumnRef),
+    /// The request failed, with a message for the log.
     Error(String),
 }
 
@@ -58,11 +61,10 @@ pub enum HostRequest {
 /// The host's answer.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum HostResponse {
+    /// The request succeeded and has nothing to return.
     Done,
     /// The plugin's manifest doesn't grant the permission this request needs.
-    Denied {
-        permission: String,
-    },
+    Denied { permission: String },
 }
 
 /// Packs a buffer into the single `u64` that `call` and `host_call` return.

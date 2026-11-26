@@ -6,7 +6,7 @@
 //! `cargo run --release -p spike-host`.
 
 use std::collections::BTreeMap;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use spike_abi::{
     ColumnRef, HostRequest, HostResponse, Request, Response, decode, encode, pack, unpack,
@@ -48,12 +48,12 @@ fn main() -> Result<()> {
     let started = Instant::now();
     let module = Module::new(&engine, &wasm)?;
     report("plugin size", format!("{} KiB", wasm.len() / 1024));
-    report("compile", started.elapsed());
+    report("compile", time(started.elapsed()));
 
     let linker = linker(&engine)?;
     let started = Instant::now();
     let mut plugin = Plugin::new(&engine, &linker, &module, vec!["storage"], Some(FUEL))?;
-    report("instantiate", started.elapsed());
+    report("instantiate", time(started.elapsed()));
 
     measure_call_overhead(&mut plugin)?;
     let input = random_walk(ROWS);
@@ -139,7 +139,7 @@ impl Plugin {
         })
     }
 
-    fn request(&mut self, request: &Request) -> Result<Response> {
+    fn send(&mut self, request: &Request) -> Result<Response> {
         let bytes = encode(request);
         let len = u32::try_from(bytes.len())?;
         let ptr = self.alloc.call(&mut self.store, len)?;
@@ -212,11 +212,11 @@ fn measure_call_overhead(plugin: &mut Plugin) -> Result<()> {
     const CALLS: u32 = 100_000;
     let started = Instant::now();
     for _ in 0..CALLS {
-        expect(plugin.request(&Request::Noop)?, &Response::Done)?;
+        assert_response(plugin.send(&Request::Noop)?, &Response::Done)?;
     }
     report(
         "noop call (encode + 4 wasm calls)",
-        started.elapsed() / CALLS,
+        time(started.elapsed() / CALLS),
     );
     Ok(())
 }
@@ -224,34 +224,30 @@ fn measure_call_overhead(plugin: &mut Plugin) -> Result<()> {
 fn measure_sma(plugin: &mut Plugin, input: &[f64]) -> Result<()> {
     let started = Instant::now();
     let column = plugin.write_column(input)?;
-    report("write 1M f64 (8 MB) into plugin", started.elapsed());
+    report("write 1M f64 (8 MB) into plugin", time(started.elapsed()));
 
     plugin.store.set_fuel(FUEL)?;
     let started = Instant::now();
-    let response = plugin.request(&Request::Sma {
+    let response = plugin.send(&Request::Sma {
         period: PERIOD,
         input: column,
     })?;
-    report("SMA(20) over 1M rows in wasm", started.elapsed());
-    report("  fuel used", format!("{}", plugin.fuel_used()?));
+    report("SMA(20) over 1M rows in wasm", time(started.elapsed()));
+    report("fuel used by the SMA", plugin.fuel_used()?);
     let Response::Column(output) = response else {
         bail!("SMA failed: {response:?}");
     };
 
     let started = Instant::now();
     let in_wasm = plugin.take_column(output)?;
-    report("read 1M f64 back", started.elapsed());
+    report("read 1M f64 back", time(started.elapsed()));
     plugin.free_column(column)?;
 
     let started = Instant::now();
     let native = native_sma(input, PERIOD as usize);
-    report("SMA(20) over 1M rows natively", started.elapsed());
+    report("SMA(20) over 1M rows natively", time(started.elapsed()));
 
-    let same = in_wasm.len() == native.len()
-        && in_wasm
-            .iter()
-            .zip(&native)
-            .all(|(a, b)| a.to_bits() == b.to_bits() || (a.is_nan() && b.is_nan()));
+    let same = bit_identical(&in_wasm, &native);
     report("wasm output bit-identical to native", same);
     report(
         "host storage after SMA",
@@ -271,11 +267,12 @@ fn check_permission_denied(
 ) -> Result<()> {
     let mut plugin = Plugin::new(engine, linker, module, vec![], Some(FUEL))?;
     let column = plugin.write_column(input)?;
-    let response = plugin.request(&Request::Sma {
+    let response = plugin.send(&Request::Sma {
         period: PERIOD,
         input: column,
     })?;
-    expect(response, &Response::Error("host denied `storage`".into()))?;
+    // Must match the message built in plugin-sma's `store_row_count`.
+    assert_response(response, &Response::Error("host denied `storage`".into()))?;
     report("SMA without `storage` permission", "denied, as expected");
     Ok(())
 }
@@ -284,14 +281,14 @@ fn check_fuel_limit(engine: &Engine, linker: &Linker<State>, module: &Module) ->
     let mut plugin = Plugin::new(engine, linker, module, vec![], Some(FUEL))?;
     plugin.store.set_fuel(10_000_000)?;
     let started = Instant::now();
-    let error = match plugin.request(&Request::Spin) {
+    let error = match plugin.send(&Request::Spin) {
         Ok(response) => bail!("spin returned {response:?}"),
         Err(error) => error,
     };
     let trap = error.downcast_ref::<Trap>();
     report(
         "infinite loop with 10M fuel",
-        format!("{trap:?} after {:?}", started.elapsed()),
+        format!("{trap:?} after {}", time(started.elapsed())),
     );
     if trap != Some(&Trap::OutOfFuel) {
         bail!("expected OutOfFuel, got {error:?}");
@@ -301,7 +298,7 @@ fn check_fuel_limit(engine: &Engine, linker: &Linker<State>, module: &Module) ->
 
 fn check_memory_limit(plugin: &mut Plugin) -> Result<()> {
     plugin.store.set_fuel(FUEL)?;
-    let response = plugin.request(&Request::Hog { bytes: 128 << 20 })?;
+    let response = plugin.send(&Request::Hog { bytes: 128 << 20 })?;
     report(
         "allocate 128 MiB under a 64 MiB cap",
         format!("{response:?}"),
@@ -309,7 +306,7 @@ fn check_memory_limit(plugin: &mut Plugin) -> Result<()> {
     if !matches!(response, Response::Error(_)) {
         bail!("allocation over the cap succeeded");
     }
-    expect(plugin.request(&Request::Noop)?, &Response::Done)?;
+    assert_response(plugin.send(&Request::Noop)?, &Response::Done)?;
     report("plugin still answers after the refusal", true);
     Ok(())
 }
@@ -321,16 +318,27 @@ fn measure_without_fuel(wasm: &[u8], input: &[f64]) -> Result<()> {
     let mut plugin = Plugin::new(&engine, &linker(&engine)?, &module, vec!["storage"], None)?;
     let column = plugin.write_column(input)?;
     let started = Instant::now();
-    let response = plugin.request(&Request::Sma {
+    let response = plugin.send(&Request::Sma {
         period: PERIOD,
         input: column,
     })?;
-    report("SMA(20) over 1M rows in wasm, no fuel", started.elapsed());
+    report(
+        "SMA(20) over 1M rows in wasm, no fuel",
+        time(started.elapsed()),
+    );
     let Response::Column(output) = response else {
         bail!("SMA failed: {response:?}");
     };
     plugin.free_column(output)?;
     plugin.free_column(column)
+}
+
+/// True if both columns hold the same bits, treating any two NaNs as equal.
+fn bit_identical(a: &[f64], b: &[f64]) -> bool {
+    a.len() == b.len()
+        && a.iter()
+            .zip(b)
+            .all(|(x, y)| x.to_bits() == y.to_bits() || (x.is_nan() && y.is_nan()))
 }
 
 fn native_sma(values: &[f64], period: usize) -> Vec<f64> {
@@ -396,14 +404,17 @@ fn write(memory: &mut [u8], ptr: u32, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-fn expect(response: Response, wanted: &Response) -> Result<()> {
+fn assert_response(response: Response, wanted: &Response) -> Result<()> {
     if &response != wanted {
         bail!("expected {wanted:?}, got {response:?}");
     }
     Ok(())
 }
 
-fn report(what: &str, value: impl std::fmt::Debug) {
-    let value = format!("{value:?}");
-    println!("{what:<42} {}", value.trim_matches('"'));
+fn time(duration: Duration) -> String {
+    format!("{duration:.2?}")
+}
+
+fn report(what: &str, value: impl std::fmt::Display) {
+    println!("{what:<42} {value}");
 }
