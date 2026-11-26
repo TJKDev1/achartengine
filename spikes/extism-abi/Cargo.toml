@@ -1,0 +1,14 @@
+# Throwaway spike for #6 (ADR 0001). It has its own workspace so the main workspace's lints,
+# public-API snapshots and layering checks don't apply. Don't depend on it from real crates.
+[workspace]
+resolver = "3"
+members = ["abi", "plugin-sma", "host"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[profile.release]
+codegen-units = 1
