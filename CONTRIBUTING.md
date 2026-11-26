@@ -27,6 +27,7 @@ lefthook install       # git hooks: fmt on commit, message check, clippy+tests o
 | Dependencies | `cargo deny check` |
 | Crate layering | `bash scripts/check-layering.sh` |
 | Public API snapshots | `bash scripts/public-api.sh` (commit the changed `public-api.txt`) |
+| Padding words ([STYLE](docs/STYLE.md)) | `bash scripts/check-prose.sh` |
 | Spelling, TOML, workflows | `typos`, `taplo fmt --check`, `zizmor .github/workflows`, `actionlint` |
 
 ## Code rules
@@ -47,6 +48,8 @@ rejects any warning. In short:
 - **Errors:** libraries use `thiserror` with typed errors; binaries and tests may use `anyhow`.
 - **Keep it simple.** Pick the clever solution only when the simple one clearly fails a
   requirement, and leave a comment explaining why.
+- **Readability.** Code, comments, docs and commit messages follow [docs/STYLE.md](docs/STYLE.md).
+  Clippy limits function length, arguments and nesting.
 
 ### Determinism
 
@@ -86,9 +89,10 @@ reason = "...")]`.
     describes);
   - touches more than about 300 lines, not counting lockfiles and snapshots.
 
-  The PR needs green CI and one independent review (`/code-review`, or a second model that did
-  not write the change). Fix what the review finds, then squash-merge with a Conventional
-  Commit title.
+  The PR needs green CI and two reviews by a model that did not write the change: `/code-review`
+  for correctness, and `/readability-review` against [STYLE](docs/STYLE.md)
+  ([ADR 0004](docs/adr/0004-readability.md)). Fix what they find, then squash-merge with a
+  Conventional Commit title.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/), and the
   `commit-msg` hook checks them:
   `type(scope)!: summary`, where type is one of `feat fix perf refactor docs test build ci chore

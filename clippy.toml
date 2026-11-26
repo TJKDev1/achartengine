@@ -10,6 +10,11 @@ allow-indexing-slicing-in-tests = true
 avoid-breaking-exported-api = false
 doc-valid-idents = ["AChartEngine", "MessagePack", "WebAssembly", "PyO3", ".."]
 
+# Readability (docs/STYLE.md). Rough limits: a function past them is usually doing two things.
+too-many-lines-threshold = 60
+too-many-arguments-threshold = 5
+excessive-nesting-threshold = 5  # counts `impl` and `mod` blocks too
+
 # Determinism (DESIGN.md §7). Engine and compute code must give the same output on every machine
 # and every run. Code that really needs one of these (e.g. the frontend's frame clock) must say
 # why with `#[expect(clippy::disallowed_methods, reason = "...")]`.

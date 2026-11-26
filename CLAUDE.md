@@ -13,6 +13,7 @@ changing architecture, and update it (or add an ADR in `docs/adr/`) when a decis
 - Dependencies: `cargo deny check` and `cargo shear`
 - Hygiene: `typos`, `taplo fmt --check`, `zizmor .github/workflows` (actions are pinned to SHAs)
 - Public API: `bash scripts/public-api.sh` rewrites `crates/*/public-api.txt`; commit the diff
+- Prose: `bash scripts/check-prose.sh` (padding words in docs, comments and commit messages)
 - Mutation tests: `cargo mutants --in-diff <(git diff HEAD)`
 
 Hooks: rustfmt runs after every Edit/Write, an edit that adds a dependency to a `Cargo.toml`
@@ -34,6 +35,8 @@ files changed. Fix what it reports; never silence it.
 - Simple over clever. Add complexity only when the simple version fails a requirement, with a
   comment explaining why.
 - Modules use `foo.rs` + `foo/`, not `mod.rs`.
+- Code, comments, docs and commit messages follow `docs/STYLE.md`. Reread what you wrote for its
+  "patterns to avoid" before committing; you won't notice them while writing.
 - Crate layering lives in `scripts/check-layering.sh`. A new crate needs an entry there, and
   choosing what it may depend on is an architectural decision: ask if DESIGN doesn't settle it.
 
@@ -41,7 +44,8 @@ files changed. Fix what it reports; never silence it.
 
 - Conventional Commits (`feat(core): ...`); a hook checks them. Small changes go straight to
   `main`. Larger ones (new crate or dependency, ABI/public API/architecture, >~300 lines) go in
-  a PR with green CI and an independent review before merging (ADR 0003, CONTRIBUTING).
+  a PR with green CI, and an independent `/code-review` and `/readability-review` before
+  merging (ADR 0003, 0004).
 - Planning lives on GitHub (TJKDev1/achartengine): milestones = phases, issues = work items, plus
   the project board. Reference issues in commits (`Closes #N`). File new work as issues instead
   of leaving TODOs.
