@@ -1,0 +1,15 @@
+[package]
+name = "spike-host"
+description = "Spike host: loads plugin-sma in wasmtime and measures it"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+spike-abi = { path = "../abi" }
+wasmtime = { version = "51", default-features = false, features = [
+  "cranelift",
+  "runtime",
+  "std",
+] }
